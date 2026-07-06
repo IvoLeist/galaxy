@@ -1,8 +1,15 @@
 <tool id="filter_param_value" name="filter_param_value" version="0.1.0">
     <description>Filter input with the param_value</description>
     <command><![CDATA[
-        echo $select1 > '$output' &&
-        echo $select2 >> '$output'
+        ## required for the nested branch test (3rd test)
+        #if str($outer_conditional.outer_selector) == "with_nested" and str($outer_conditional.inner_conditional.inner_selector) == "with_selects":
+            echo "nested_select1=$outer_conditional.inner_conditional.nested_select1" > '$output' &&
+            echo "nested_select2=$outer_conditional.inner_conditional.nested_select2" >> '$output'
+        #else:
+        ## required for test 1 and 2
+            echo $select1 > '$output' &&
+            echo $select2 >> '$output'
+        #end if
     ]]></command>
     <inputs>
         <!-- define 2 selects that are initialised with entries from a data table
@@ -32,6 +39,41 @@
                 <filter type="param_value" column="0" ref="select1" keep="true"/>
             </options>
         </param>
+        <conditional name="outer_conditional">
+            <param name="outer_selector" type="select" label="Outer conditional branch">
+                <option value="with_nested" selected="true">Use nested branch</option>
+                <option value="alternate">Alternate branch</option>
+            </param>
+
+            <when value="with_nested">
+                <conditional name="inner_conditional">
+                    <param name="inner_selector" type="select" label="Inner conditional branch">
+                        <option value="without_selects" selected="true">No dependent selects</option>
+                        <option value="with_selects">Use dependent selects</option>
+                    </param>
+
+                    <when value="without_selects"/>
+
+                    <when value="with_selects">
+                        <param name="nested_select1" type="select" label="Nested select 1">
+                            <options from_data_table="test_fasta_indexes">
+                                <column name="value" index="0"/>
+                                <column name="name" index="1"/>
+                            </options>
+                        </param>
+
+                        <param name="nested_select2" type="select" label="Nested select 2, filtered by nested select 1">
+                            <options from_data_table="test_fasta_indexes">
+                                <column name="value" index="0"/>
+                                <column name="name" index="1"/>
+                                <filter type="param_value" column="0" ref="nested_select1" keep="true"/>
+                            </options>
+                        </param>
+                    </when>
+                </conditional>
+            </when>
+            <when value="alternate"/>
+        </conditional>
     </inputs>
 
     <outputs>
@@ -53,8 +95,40 @@
             <param name="select1" value="hg18_value,hg19_value"/>
             <param name="select2" value="hg18_value" />
         </test>
-    </tests>
+        <test expect_failure="false">
+            <!-- Not needed for the test select1 is only set so the existing top-level dependent selects have valid options. -->
+            <param name="select1" value="hg18_value,hg19_value"/>
+            
+            <!-- start of the actual test-->
+            <param name="outer_conditional|outer_selector" value="with_nested"/>
+            <param name="outer_conditional|inner_conditional|inner_selector" value="with_selects"/>
+            <param name="outer_conditional|inner_conditional|nested_select1" value="hg19_value"/>
+            <param name="outer_conditional|inner_conditional|nested_select2" value="hg19_value"/>
 
+            <assert_command>
+                <has_text text="nested_select1=hg19_value"/>
+                <has_text text="nested_select2=hg19_value"/>
+            </assert_command>
+            
+            <output name="output">
+                <assert_contents>
+                    <has_n_lines n="2"/>
+                    <has_line line="nested_select1=hg19_value"/>
+                    <has_line line="nested_select2=hg19_value"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_failure="true">
+            <!-- Not needed for the test select1 is only set so the existing top-level dependent selects have valid options. -->
+            <param name="select1" value="hg18_value,hg19_value"/>
+
+            <!-- start of the actual test-->
+            <param name="outer_conditional|outer_selector" value="with_nested"/>
+            <param name="outer_conditional|inner_conditional|inner_selector" value="with_selects"/>
+            <param name="outer_conditional|inner_conditional|nested_select1" value="hg19_value"/>
+            <param name="outer_conditional|inner_conditional|nested_select2" value="mm10_value"/>
+        </test>
+    </tests>
     <help>
     </help>
 </tool>
