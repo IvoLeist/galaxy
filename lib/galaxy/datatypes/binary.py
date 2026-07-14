@@ -4305,7 +4305,30 @@ class Parquet(Binary):
 
     def __init__(self, **kwd):
         super().__init__(**kwd)
-        self._magic = b"PAR1"  # Defined at https://parquet.apache.org/documentation/latest/
+        self._magic = b"PAR1"  # Defined at https://parquet.apache.org/docs/file-format/
+
+    def sniff_prefix(self, file_prefix: FilePrefix) -> bool:
+        return file_prefix.startswith_bytes(self._magic)
+
+@build_sniff_from_prefix
+class Arrow(Binary):
+    """
+    Class describing the Apache Arrow IPC file format.
+
+    >>> from galaxy.datatypes.sniff import get_test_fname
+    >>> fname = get_test_fname("example.arrow")
+    >>> Arrow().sniff(fname)
+    True
+    >>> fname = get_test_fname("example.parquet")
+    >>> Arrow().sniff(fname)
+    False
+    """
+
+    file_ext = "arrow"
+
+    def __init__(self, **kwd):
+        super().__init__(**kwd)
+        self._magic = b"ARROW1" # Defined https://arrow.apache.org/docs/format/Columnar.html#ipc-file-format
 
     def sniff_prefix(self, file_prefix: FilePrefix) -> bool:
         return file_prefix.startswith_bytes(self._magic)
