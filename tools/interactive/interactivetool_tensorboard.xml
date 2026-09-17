@@ -43,6 +43,5 @@ After starting the tool, open TensorBoard from Galaxy's active interactive tools
 The available dashboards depend on the data recorded in your event logs.
 Stop the interactive tool in Galaxy when you have finished exploring.
 
-This tool views existing logs; it does not train a model or create history outputs.
     ]]></help>
 </tool>
