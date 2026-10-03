@@ -7,7 +7,6 @@ from io import BytesIO
 from typing import (
     Any,
     Literal,
-    Optional,
 )
 from uuid import uuid4
 
@@ -571,7 +570,7 @@ class TestToolsApi(ApiTestCase, TestsTools):
         tool_id: str,
         history_id: str,
         *,
-        options_pagination: Optional[dict[str, Any]] = None,
+        options_pagination: dict[str, Any] | None = None,
         param_name: str = "f1",
     ) -> dict[str, Any]:
         """POST ``tools/{tool_id}/build`` and return the named input dict."""
@@ -650,31 +649,18 @@ class TestToolsApi(ApiTestCase, TestsTools):
             assert paginated_ids == full_ids, (paginated_ids, full_ids)
 
     @skip_without_tool("collection_paired_test")
-    def test_build_collection_options_hidden_direct_match_included(self):
-        """A hidden ``paired`` collection still appears under direct match
-        — preserves legacy ``active_dataset_collections`` semantics (which
-        included hidden) for the direct-match path."""
+    def test_build_collection_options_hidden_excluded(self):
         with self.dataset_populator.test_history() as history_id:
-            hidden_pair = self._create_hdca(history_id, "pair", hidden=True)
-            self.dataset_populator.wait_for_history(history_id, assert_ok=True)
-
-            f1 = self._build_tool_param("collection_paired_test", history_id)
-            assert hidden_pair["id"] in {e["id"] for e in f1["options"]["hdca"]}
-
-    @skip_without_tool("collection_paired_test")
-    def test_build_collection_options_hidden_multirun_excluded(self):
-        """A hidden ``list:paired`` collection must NOT appear as a multirun
-        match — preserves legacy ``active_visible_dataset_collections``
-        semantics (visible-only) for the subcollection-mapping path."""
-        with self.dataset_populator.test_history() as history_id:
-            hidden_lop = self._create_hdca(history_id, "list_of_pairs", hidden=True)
+            self._create_hdca(history_id, "pair", hidden=True)
+            self._create_hdca(history_id, "list_of_pairs", hidden=True)
             visible_pair = self._create_hdca(history_id, "pair")
+            visible_lop = self._create_hdca(history_id, "list_of_pairs")
             self.dataset_populator.wait_for_history(history_id, assert_ok=True)
 
             f1 = self._build_tool_param("collection_paired_test", history_id)
-            returned_ids = {e["id"] for e in f1["options"]["hdca"]}
-            assert hidden_lop["id"] not in returned_ids, returned_ids
-            assert visible_pair["id"] in returned_ids, returned_ids
+            returned_ids = [e["id"] for e in f1["options"]["hdca"]]
+            assert returned_ids == [visible_lop["id"], visible_pair["id"]], returned_ids
+            assert f1["options_meta"]["hdca"]["total_estimate"] == 2
 
     @skip_without_tool("collection_list_or_nested_list_input")
     def test_build_collection_options_multi_typed_emits_direct_and_multirun(self):
@@ -787,10 +773,51 @@ class TestToolsApi(ApiTestCase, TestsTools):
         assert "--ex1" in option_values
         assert "ex2" in option_values
 
+    @skip_without_tool("gx_int")
+    def test_tool_interop(self):
+        """GET /api/tools/{tool_id}/interop returns ParsedTool JSON."""
+        response = self._get("tools/gx_int/interop")
+        self._assert_status_code_is(response, 200)
+        interop = response.json()
+        assert interop["id"] == "gx_int"
+        assert "inputs" in interop
+        assert "outputs" in interop
+        assert len(interop["inputs"]) > 0
+
+    @skip_without_tool("gx_int")
+    def test_tool_interop_versioned(self):
+        """GET /api/tools/{tool_id}/versions/{version}/interop returns same result."""
+        # Get version from the unversioned endpoint first
+        response = self._get("tools/gx_int/interop")
+        self._assert_status_code_is(response, 200)
+        interop = response.json()
+        version = interop["version"]
+
+        versioned_response = self._get(f"tools/gx_int/versions/{version}/interop")
+        self._assert_status_code_is(versioned_response, 200)
+        versioned_interop = versioned_response.json()
+        assert versioned_interop["id"] == interop["id"]
+        assert versioned_interop["version"] == version
+        assert len(versioned_interop["inputs"]) == len(interop["inputs"])
+
+    @skip_without_tool("gx_int")
+    def test_versioned_schema_endpoints(self):
+        """Versioned /versions/{v}/parameter_*_schema endpoints mirror unversioned ones."""
+        response = self._get("tools/gx_int/interop")
+        version = response.json()["version"]
+
+        for schema_type in ["request", "landing_request", "test_case_xml"]:
+            unversioned = self._get(f"tools/gx_int/parameter_{schema_type}_schema")
+            self._assert_status_code_is(unversioned, 200)
+
+            versioned = self._get(f"tools/gx_int/versions/{version}/parameter_{schema_type}_schema")
+            self._assert_status_code_is(versioned, 200)
+            assert unversioned.json() == versioned.json()
+
     @skip_without_tool("test_data_source")
-    def test_data_source_ok_request(self, mock_http_server):
+    def test_data_source_ok_request(self, test_http_server):
         with self.dataset_populator.test_history() as history_id:
-            url = mock_http_server.get_url(
+            url = test_http_server.get_url(
                 remote_url="https://raw.githubusercontent.com/galaxyproject/galaxy/dev/test-data/1.bed",
                 file_path="test-data/1.bed",
             )
@@ -817,12 +844,16 @@ class TestToolsApi(ApiTestCase, TestsTools):
             assert output_details["file_ext"] == "bed"
 
     @skip_without_tool("test_data_source")
-    def test_data_source_sniff_fastqsanger(self):
+    def test_data_source_sniff_fastqsanger(self, test_http_server):
         with self.dataset_populator.test_history() as history_id:
+            url = test_http_server.get_url(
+                remote_url="https://raw.githubusercontent.com/galaxyproject/galaxy/dev/test-data/1.fastqsanger.gz",
+                file_path="test-data/1.fastqsanger.gz",
+            )
             payload = self.dataset_populator.run_tool_payload(
                 tool_id="test_data_source",
                 inputs={
-                    "URL": "https://raw.githubusercontent.com/galaxyproject/galaxy/dev/test-data/1.fastqsanger.gz",
+                    "URL": url,
                     "URL_method": "get",
                 },
                 history_id=history_id,
@@ -2932,12 +2963,12 @@ class TestToolsApi(ApiTestCase, TestsTools):
         output2 = outputs[1]
         output1_content = self.dataset_populator.get_history_dataset_content(history_id, dataset=output1)
         output2_content = self.dataset_populator.get_history_dataset_content(history_id, dataset=output2)
-        assert output1_content.strip() == "forward"
-        assert output2_content.strip() == "reverse"
+        assert output1_content.splitlines() == ["identifier forward", "safe_identifier forward"]
+        assert output2_content.splitlines() == ["identifier reverse", "safe_identifier reverse"]
 
     @skip_without_tool("identifier_single")
     def test_identifier_outside_map(self, history_id):
-        new_dataset1 = self.dataset_populator.new_dataset(history_id, content="123", name="Plain HDA")
+        new_dataset1 = self.dataset_populator.new_dataset(history_id, content="123", name="../Plain HDA")
         inputs = {
             "input1": {"src": "hda", "id": new_dataset1["id"]},
         }
@@ -2952,7 +2983,7 @@ class TestToolsApi(ApiTestCase, TestsTools):
         assert len(implicit_collections) == 0
         output1 = outputs[0]
         output1_content = self.dataset_populator.get_history_dataset_content(history_id, dataset=output1)
-        assert output1_content.strip() == "Plain HDA"
+        assert output1_content.splitlines() == ["identifier ../Plain HDA", "safe_identifier _Plain_HDA"]
 
     @skip_without_tool("identifier_multiple")
     def test_list_selectable_in_multidata_input(self, history_id):
@@ -4059,7 +4090,7 @@ class TestToolsApi(ApiTestCase, TestsTools):
         # assert "User does not have permission to use a dataset" in err_message, err_message
 
     @contextlib.contextmanager
-    def _different_user_and_history(self, user_email: Optional[str] = None):
+    def _different_user_and_history(self, user_email: str | None = None):
         with self._different_user(email=user_email):
             with self.dataset_populator.test_history() as other_history_id:
                 yield other_history_id

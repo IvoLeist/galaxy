@@ -11,7 +11,6 @@ from os.path import (
     abspath,
     join,
 )
-from typing import Optional
 
 from galaxy import util
 from galaxy.job_execution.output_collect import default_exit_code_file
@@ -49,7 +48,7 @@ REMOTE_TOOL_EVAL_PULSAR_COMMAND = (
 def build_command(
     runner: "BaseJobRunner",
     job_wrapper: "MinimalJobWrapper",
-    container: Optional[Container] = None,
+    container: Container | None = None,
     modify_command_for_container: bool = True,
     include_metadata: bool = False,
     include_work_dir_outputs: bool = True,
@@ -57,6 +56,7 @@ def build_command(
     remote_command_params=None,
     remote_job_directory=None,
     stream_stdout_stderr: bool = False,
+    metadata_container: Container | None = None,
 ):
     """
     Compose the sequence of commands necessary to execute a job. This will
@@ -165,7 +165,7 @@ def build_command(
 
     if include_metadata and job_wrapper.requires_setting_metadata:
         commands_builder.append_command(f"cd '{working_directory}'")
-        __handle_metadata(commands_builder, job_wrapper, runner, remote_command_params)
+        __handle_metadata(commands_builder, job_wrapper, runner, remote_command_params, metadata_container)
 
     return commands_builder.build()
 
@@ -176,7 +176,7 @@ def __externalize_commands(
     commands_builder,
     remote_command_params,
     script_name="tool_script.sh",
-    container: Optional[Container] = None,
+    container: Container | None = None,
 ):
     local_container_script = join(job_wrapper.working_directory, script_name)
     tool_commands = commands_builder.build()
@@ -260,7 +260,11 @@ def __handle_work_dir_outputs(
 
 
 def __handle_metadata(
-    commands_builder, job_wrapper: "MinimalJobWrapper", runner: "BaseJobRunner", remote_command_params
+    commands_builder,
+    job_wrapper: "MinimalJobWrapper",
+    runner: "BaseJobRunner",
+    remote_command_params,
+    metadata_container: Container | None = None,
 ):
     # Append metadata setting commands, we don't want to overwrite metadata
     # that was copied over in init_meta(), as per established behavior
@@ -295,6 +299,9 @@ def __handle_metadata(
     )
     metadata_command = metadata_command.strip()
     if metadata_command:
+        if metadata_container:
+            commands_builder.append_command(metadata_container.containerize_command("galaxy-set-metadata"))
+            return
         # Place Galaxy and its dependencies in environment for metadata regardless of tool.
         if not job_wrapper.is_cwl_job:
             commands_builder.append_command(SETUP_GALAXY_FOR_METADATA)

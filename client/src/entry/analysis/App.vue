@@ -43,9 +43,9 @@
         </div>
         <template v-if="!embedded">
             <div id="dd-helper" />
-            <Toast ref="toastRef" />
+            <GToast />
+            <CommandPalette />
             <ConfirmDialog ref="confirmDialogRef" />
-            <UploadModal ref="uploadModal" />
             <BroadcastsOverlay />
             <DragGhost />
             <template v-if="showMasthead">
@@ -62,11 +62,9 @@ import { useRoute } from "vue-router/composables";
 
 import { getGalaxyInstance } from "@/app";
 import short from "@/components/plugins/short";
-import Toast from "@/components/Toast";
 import { setConfirmDialogComponentRef } from "@/composables/confirmDialog";
-import { setGlobalUploadModal } from "@/composables/globalUploadModal";
 import { useRouteQueryBool } from "@/composables/route";
-import { setToastComponentRef } from "@/composables/toast";
+import { useHasStagedUploads } from "@/composables/upload/useUploadStaging";
 import { getAppRoot } from "@/onload";
 import { useConfigStore } from "@/stores/configurationStore";
 import { useEntryPointStore } from "@/stores/entryPointStore";
@@ -78,23 +76,24 @@ import { useWindowManagerStore } from "@/stores/windowManagerStore";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import Alert from "@/components/Alert.vue";
+import GToast from "@/components/BaseComponents/GToast.vue";
+import CommandPalette from "@/components/CommandPalette/CommandPalette.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DragGhost from "@/components/DragGhost.vue";
 import Masthead from "@/components/Masthead/Masthead.vue";
 import BroadcastsOverlay from "@/components/Notifications/Broadcasts/BroadcastsOverlay.vue";
 import TourRunner from "@/components/Tour/TourRunner.vue";
-import UploadModal from "@/components/Upload/UploadModal.vue";
 import WindowManagerWindow from "@/components/WindowManager/WindowManagerWindow.vue";
 
 export default {
     components: {
         Alert,
+        CommandPalette,
         DragGhost,
         Masthead,
         WindowManagerWindow,
-        Toast,
+        GToast,
         ConfirmDialog,
-        UploadModal,
         BroadcastsOverlay,
         TourRunner,
     },
@@ -108,16 +107,11 @@ export default {
         const userStore = useUserStore();
         const { currentTheme } = storeToRefs(userStore);
 
-        const toastRef = ref(null);
-        setToastComponentRef(toastRef);
-
         const confirmDialogRef = ref(null);
         setConfirmDialogComponentRef(confirmDialogRef);
 
-        const uploadModal = ref(null);
-        setGlobalUploadModal(uploadModal);
-
         const windowManagerStore = useWindowManagerStore();
+        const hasStagedUploads = useHasStagedUploads();
 
         // Treat any iframe context as embedded: scratchbook pops dataset
         // displays into ``WinBox`` iframes that hit the same routes without
@@ -201,13 +195,12 @@ export default {
             userLoadError,
             retryStartupLoad,
             confirmation,
-            toastRef,
             confirmDialogRef,
-            uploadModal,
             currentTheme,
             embedded,
             currentTour,
             windowManagerStore,
+            hasStagedUploads,
         };
     },
     data() {
@@ -268,7 +261,7 @@ export default {
     created() {
         if (!this.embedded) {
             window.onbeforeunload = () => {
-                if (this.confirmation || this.windowManagerStore.beforeUnload()) {
+                if (this.confirmation || this.windowManagerStore.beforeUnload() || this.hasStagedUploads) {
                     return "Are you sure you want to leave the page?";
                 }
             };

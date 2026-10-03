@@ -17,10 +17,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 from a2wsgi import WSGIMiddleware
@@ -35,6 +32,10 @@ from galaxy.model.database_utils import (
     database_exists,
 )
 from galaxy.model.tool_shed_install import mapping as toolshed_mapping
+from galaxy.tool_util.unittest_utils import (
+    functional_test_tool_directory,
+    functional_test_tool_path,
+)
 from galaxy.tool_util.verify.interactor import (
     GalaxyInteractorApi,
     verify_tool,
@@ -45,6 +46,7 @@ from galaxy.util import (
     download_to_file,
     galaxy_directory,
 )
+from galaxy.util.properties import running_from_source
 from galaxy.webapps.base.api import build_route_name_index
 from galaxy.webapps.galaxy.fast_app import (
     _build_merged_openapi,
@@ -69,27 +71,34 @@ from galaxy_test.base.env import (
 )
 from .test_logging import logging_config_file
 
-galaxy_root = galaxy_directory()
 DEFAULT_CONFIG_PREFIX = "GALAXY"
 GX_IT_PROXY_STARTUP_TIMEOUT = 60
-GALAXY_TEST_DIRECTORY = os.path.join(galaxy_root, "test")
 GALAXY_TEST_FILE_DIR = "test-data,https://github.com/galaxyproject/galaxy-test-data.git"
-TOOL_SHED_TEST_DATA = os.path.join(galaxy_root, "lib", "tool_shed", "test", "test_data")
-TEST_WEBHOOKS_DIR = os.path.join(galaxy_root, "test", "functional", "webhooks")
-FRAMEWORK_TOOLS_DIR = os.path.join(GALAXY_TEST_DIRECTORY, "functional", "tools")
-FRAMEWORK_UPLOAD_TOOL_CONF = os.path.join(FRAMEWORK_TOOLS_DIR, "upload_tool_conf.xml")
-FRAMEWORK_SAMPLE_TOOLS_CONF = os.path.join(FRAMEWORK_TOOLS_DIR, "sample_tool_conf.xml")
-FRAMEWORK_DATATYPES_CONF = os.path.join(FRAMEWORK_TOOLS_DIR, "sample_datatypes_conf.xml")
+# Shipped with galaxy-tool-util, so these resolve without a checkout. Each conf sets
+# tool_path="${tool_conf_dir}", which points at the directory it is loaded from.
+FRAMEWORK_TOOLS_DIR = functional_test_tool_directory()
+FRAMEWORK_UPLOAD_TOOL_CONF = functional_test_tool_path("upload_tool_conf.xml")
+FRAMEWORK_SAMPLE_TOOLS_CONF = functional_test_tool_path("sample_tool_conf.xml")
+FRAMEWORK_DATATYPES_CONF = functional_test_tool_path("sample_datatypes_conf.xml")
 MIGRATED_TOOL_PANEL_CONFIG = "config/migrated_tools_conf.xml"
 INSTALLED_TOOL_PANEL_CONFIGS = [os.environ.get("GALAXY_TEST_SHED_TOOL_CONF", "config/shed_tool_conf.xml")]
 DEFAULT_LOCALES = "en"
+TOOL_SEARCH_INDEX_TIMEOUT = 300
 DEFAULT_TOOL_TEST_WAIT: int = int(os.environ.get("GALAXY_TEST_DEFAULT_WAIT", 60))
 
 log = logging.getLogger("test_driver")
 
 
-# Global variable to pass database contexts around - only needed for older
-# Tool Shed twill tests that didn't utilize the API for such interactions.
+def tool_shed_test_data() -> str:
+    return os.path.join(galaxy_directory(), "lib", "tool_shed", "test", "test_data")
+
+
+def functional_test_webhooks_dir() -> str:
+    return os.path.join(galaxy_directory(), "test", "functional", "webhooks")
+
+
+# Global variable to pass database contexts around - only needed for the numbered
+# Tool Shed tests that assert against the database instead of the API.
 install_context = None
 
 
@@ -157,11 +166,11 @@ def setup_galaxy_config(
     new_file_path = tempfile.mkdtemp(prefix="new_files_path_", dir=tmpdir)
     job_working_directory = tempfile.mkdtemp(prefix="job_working_directory_", dir=tmpdir)
 
-    user_library_import_dir: Optional[str]
+    user_library_import_dir: str | None
     if use_test_file_dir:
         first_test_file_dir = ensure_test_file_dir_set()
         if not os.path.isabs(first_test_file_dir):
-            first_test_file_dir = os.path.join(galaxy_root, first_test_file_dir)
+            first_test_file_dir = os.path.join(galaxy_directory(), first_test_file_dir)
         library_import_dir = first_test_file_dir
         import_dir = os.path.join(first_test_file_dir, "users")
         if os.path.exists(import_dir):
@@ -172,7 +181,12 @@ def setup_galaxy_config(
         user_library_import_dir = None
         library_import_dir = None
     job_config_file = os.environ.get("GALAXY_TEST_JOB_CONFIG_FILE", default_job_config_file)
-    tool_path = os.environ.get("GALAXY_TEST_TOOL_PATH", "tools")
+    # Left unset off a checkout so GalaxyAppConfiguration resolves the bundled tools out of
+    # galaxy-app; the test webhooks only exist in a checkout.
+    tool_path = os.environ.get("GALAXY_TEST_TOOL_PATH")
+    if tool_path is None and running_from_source:
+        tool_path = "tools"
+    webhooks_dir = functional_test_webhooks_dir() if running_from_source else None
     tool_data_table_config_path = _tool_data_table_config_path(default_tool_data_table_config_path)
     default_data_manager_config = None
     for data_manager_config in ["config/data_manager_conf.xml", "data_manager_conf.xml"]:
@@ -221,11 +235,14 @@ def setup_galaxy_config(
         allow_user_deletion=True,
         api_allow_run_as="test@bx.psu.edu",
         auto_configure_logging=logging_config_file is None,
-        chunk_upload_size=100,
+        chunk_upload_size=1048576,
         conda_prefix=conda_prefix,
         conda_auto_init=conda_auto_init,
         conda_auto_install=conda_auto_install,
         cleanup_job=cleanup_job,
+        # Tests that want the curated workflows tab pick a source explicitly; leaving it on
+        # iwc by default would let any request to /api/workflows/curated fetch the catalog.
+        curated_workflows_source="off",
         retry_metadata_internally=False,
         data_dir=tmpdir,
         data_manager_config_file=data_manager_config_file,
@@ -251,7 +268,7 @@ def setup_galaxy_config(
         use_tasked_jobs=True,
         use_heartbeat=False,
         user_library_import_dir=user_library_import_dir,
-        webhooks_dir=TEST_WEBHOOKS_DIR,
+        webhooks_dir=webhooks_dir,
         logging=logging,
         monitor_thread_join_timeout=5,
         object_store_store_by="uuid",
@@ -308,7 +325,7 @@ backends:
     tool_dependency_dir = os.environ.get("GALAXY_TOOL_DEPENDENCY_DIR")
     if tool_dependency_dir:
         config["tool_dependency_dir"] = tool_dependency_dir
-    # Used by shed's twill dependency stuff
+    # Used by the shed's tool dependency tests.
     # TODO: read from Galaxy's config API.
     os.environ["GALAXY_TEST_TOOL_DEPENDENCY_DIR"] = tool_dependency_dir or os.path.join(tmpdir, "dependencies")
 
@@ -327,7 +344,7 @@ def _resolve_relative_config_paths(config_option):
     if config_option is not None:
         resolved = []
         for path in config_option.split(","):
-            resolved.append(os.path.join(galaxy_root, path.strip()))
+            resolved.append(os.path.join(galaxy_directory(), path.strip()))
         return ",".join(resolved)
 
 
@@ -422,7 +439,7 @@ def database_conf(db_path, prefix="GALAXY", prefer_template_database=False):
 
 
 def install_database_conf(db_path, default_merged=False):
-    install_galaxy_database_connection: Optional[str]
+    install_galaxy_database_connection: str | None
     if "GALAXY_TEST_INSTALL_DBURI" in os.environ:
         install_galaxy_database_connection = os.environ["GALAXY_TEST_INSTALL_DBURI"]
     elif asbool(os.environ.get("GALAXY_TEST_INSTALL_DB_MERGED", default_merged)):
@@ -460,7 +477,12 @@ def _get_static_settings():
     This mainly consists of the filesystem locations of url-mapped
     static resources.
     """
-    static_dir = os.path.join(galaxy_root, "static")
+    if not running_from_source:
+        # build_url_map falls back to the assets in galaxy-web-apps and galaxy-web-client;
+        # naming directories here would override them with paths that do not exist.
+        return dict(static_enabled=True, static_cache_time=360)
+
+    static_dir = os.path.join(galaxy_directory(), "static")
 
     # TODO: these should be copied from config/galaxy.ini
     return dict(
@@ -508,7 +530,7 @@ def wait_for_http_server(host, port, prefix=None, sleep_amount=0.1, sleep_tries=
         raise Exception(message)
 
 
-def attempt_port(port: int) -> Optional[int]:
+def attempt_port(port: int) -> int | None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.bind(("", port))
@@ -599,12 +621,11 @@ def build_galaxy_web_app(simple_kwargs, init_fast_app: FastAppFactory = init_gal
     global install_context
     install_context = app.install_model.context
 
-    # Toolbox indexing happens via the work queue out of band recently, and,
-    # beyond potentially running async after tests execute doesn't execute
-    # without building a webapp (app.is_webapp = False for this test kit).
-    # We need to ensure to build an index for the test galaxy app -- this is
-    # pretty fast with the limited toolset
-    app.reindex_tool_search()
+    # The config watcher indexes the toolbox out of band via the
+    # ``rebuild_toolbox_search_index`` control task; wait for it so tests never
+    # search a missing or half-built index.
+    if not app.toolbox_search.wait_until_current(app.toolbox, timeout=TOOL_SEARCH_INDEX_TIMEOUT):
+        raise RuntimeError(f"Tool search index was not built within {TOOL_SEARCH_INDEX_TIMEOUT} seconds")
 
     return web_app
 
@@ -653,7 +674,7 @@ class ServerWrapper:
         self.port = port
         self.prefix = prefix
 
-    def get_logs(self) -> Optional[str]:
+    def get_logs(self) -> str | None:
         # Subclasses can implement a way to return relevant logs
         pass
 
@@ -821,7 +842,7 @@ def _test_fast_app_slot() -> dict:
     return {}
 
 
-def _find_root_wsgi_mount(app: FastAPI) -> Optional[Mount]:
+def _find_root_wsgi_mount(app: FastAPI) -> Mount | None:
     """Locate the ``Mount("/", wsgi_handler)`` that ``initialize_fast_app``
     installs as the final route on the FastAPI app.
     """
@@ -865,8 +886,13 @@ def _rebind_tus_routes(app: FastAPI, gx_app, original_lifespan_context) -> None:
 
 
 def _is_tus_route(route) -> bool:
-    path = getattr(route, "path", None)
-    return bool(path and any(path.startswith(p) for p in _TUS_PREFIXES))
+    """Recognize the routes ``include_tus`` contributed, however FastAPI stored them.
+
+    An included router may appear as one ``_IncludedRouter`` entry carrying no ``path``
+    of its own, in which case its prefix identifies it.
+    """
+    prefix = getattr(route, "path", None) or getattr(getattr(route, "original_router", None), "prefix", None)
+    return bool(prefix and prefix.startswith(_TUS_PREFIXES))
 
 
 def _rebind_galaxy_middleware(app: FastAPI, gx_app) -> None:
@@ -940,17 +966,21 @@ def caching_fast_app_factory(gx_wsgi_webapp, gx_app):
     ``build_galaxy_web_app`` as its ``init_fast_app``. Other callers keep
     using the default uncached ``init_galaxy_fast_app``.
 
-    Falls back to a fresh build when the topology differs from the
-    cached shell (non-default ``galaxy_url_prefix`` or MCP enabled),
-    because those paths produce a parent wrapper / lifespan-bound
-    app that is awkward to re-bind.
+    Builds a fresh app for shapes ``_rebind_fast_app_for_launch`` cannot produce:
+    a non-default ``galaxy_url_prefix`` or MCP (parent wrapper / lifespan-bound
+    app), and ``use_access_logging_middleware`` (middleware chosen at build time).
     """
-    topology_differs = gx_app.config.galaxy_url_prefix != "/" or gx_app.config.enable_mcp_server
+
+    config = gx_app.config
+    topology_differs = (
+        config.galaxy_url_prefix != "/" or config.enable_mcp_server or config.use_access_logging_middleware
+    )
     if topology_differs:
         return init_galaxy_fast_app(gx_wsgi_webapp, gx_app)
     slot = _test_fast_app_slot()
     existing = slot.get("app")
     if existing is None:
+        log.debug("Creating cached FastAPI app")
         app = init_galaxy_fast_app(gx_wsgi_webapp, gx_app)
         slot["app"] = app
         slot["lifespan_context"] = app.router.lifespan_context
@@ -995,7 +1025,7 @@ def launch_server(
         galaxy_config = interactive_tool_defaults
 
     if enable_realtime_mapping or os.environ.get("GALAXY_TEST_GRAVITY"):
-        galaxy_config["root"] = galaxy_root
+        galaxy_config["root"] = galaxy_directory()
         state_dir, galaxyctl, gxit_port = launch_gravity(port=port, galaxy_config=galaxy_config)
         gravity_wrapper = GravityServerWrapper(name, host, port, state_dir, galaxyctl, gxit_port=gxit_port)
         gravity_wrapper.wait_for_server()
@@ -1075,8 +1105,8 @@ class GalaxyTestDriver(TestDriver):
 
         self.testing_shed_tools = getattr(config_object, "testing_shed_tools", False)
 
-        default_tool_conf: Optional[str]
-        datatypes_conf_override: Optional[str]
+        default_tool_conf: str | None
+        datatypes_conf_override: str | None
         framework_tools_and_types = getattr(config_object, "framework_tool_and_types", False)
         if framework_tools_and_types:
             default_tool_conf = FRAMEWORK_SAMPLE_TOOLS_CONF
@@ -1100,7 +1130,7 @@ class GalaxyTestDriver(TestDriver):
         self._configure(config_object)
         self._register_and_run_servers(config_object)
 
-    def get_logs(self) -> Optional[str]:
+    def get_logs(self) -> str | None:
         if not self.server_wrappers:
             return None
         server_wrapper = self.server_wrappers[0]
@@ -1112,7 +1142,7 @@ class GalaxyTestDriver(TestDriver):
 
     def _register_and_run_servers(self, config_object=None, handle_config=None) -> None:
         config_object = self._ensure_config_object(config_object)
-        self.app: Optional[GalaxyUniverseApplication] = None
+        self.app: GalaxyUniverseApplication | None = None
 
         if self.external_galaxy is None:
             if self._saved_galaxy_config is not None:
@@ -1186,7 +1216,7 @@ class GalaxyTestDriver(TestDriver):
         return config_object
 
     def run_tool_test(
-        self, tool_id: str, index: int = 0, resource_parameters: Optional[dict[str, Any]] = None, **kwd
+        self, tool_id: str, index: int = 0, resource_parameters: dict[str, Any] | None = None, **kwd
     ) -> None:
         if resource_parameters is None:
             resource_parameters = {}

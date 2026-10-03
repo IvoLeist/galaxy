@@ -3,6 +3,7 @@ import os
 import tempfile
 
 import pytest
+from Cheetah.Template import Template
 
 import galaxy.tool_util.linters
 from galaxy.tool_util.lint import (
@@ -36,6 +37,7 @@ from galaxy.util import (
     ElementTree,
     submodules,
 )
+from galaxy.util.template import fill_template
 from galaxy.util.unittest_utils import skip_if_site_down
 from galaxy.util.xml_macros import load_with_references
 
@@ -963,6 +965,27 @@ TESTS_EXPECT_FAILURE_OUTPUT = """
 </tool>
 """
 
+TESTS_EXPECT_FAILURE_INVALID_INPUTS = """
+<tool id="id" name="name" profile="24.2">
+    <inputs>
+        <param name="taxid" type="text" value="1">
+            <validator type="regex" message="Enter numeric tax IDs">^\\d+$</validator>
+        </param>
+    </inputs>
+    <outputs>
+        <data name="test"/>
+    </outputs>
+    <tests>
+        <test expect_failure="true">
+            <param name="taxid" value="f5"/>
+        </test>
+        <test expect_failure="true">
+            <param name="taxidd" value="f5"/>
+        </test>
+    </tests>
+</tool>
+"""
+
 ASSERTS = """
 <tool id="id" name="name">
     <outputs>
@@ -1271,8 +1294,7 @@ def test_citations_legacy_doi_prefix(lint_ctx):
     tool_source = get_xml_tool_source(CITATIONS_LEGACY_DOI_PREFIX)
     run_lint_module(lint_ctx, citations, tool_source)
     assert lint_ctx.warn_messages == [
-        "Citation 'doi:10.1186/1471-2105-11-485' uses the legacy 'doi:' prefix; "
-        "use the bare DOI '10.1186/1471-2105-11-485' instead."
+        "Citation 'doi:10.1186/1471-2105-11-485' uses the legacy 'doi:' prefix; use the bare DOI '10.1186/1471-2105-11-485' instead."
     ]
     assert not lint_ctx.error_messages
 
@@ -1289,8 +1311,7 @@ def test_citations_legacy_doi_prefix_error_on_modern_profile(lint_ctx):
     tool_source = get_xml_tool_source(CITATIONS_LEGACY_DOI_PREFIX_MODERN)
     run_lint_module(lint_ctx, citations, tool_source)
     assert lint_ctx.error_messages == [
-        "Citation 'doi:10.1186/1471-2105-11-485' uses the legacy 'doi:' prefix; "
-        "use the bare DOI '10.1186/1471-2105-11-485' instead."
+        "Citation 'doi:10.1186/1471-2105-11-485' uses the legacy 'doi:' prefix; use the bare DOI '10.1186/1471-2105-11-485' instead."
     ]
     assert not lint_ctx.warn_messages
 
@@ -1554,6 +1575,153 @@ def test_inputs_param_name(lint_ctx):
     assert not lint_ctx.valid_messages
     assert len(lint_ctx.warn_messages) == 2
     assert len(lint_ctx.error_messages) == 2
+
+
+@pytest.mark.parametrize(
+    "input_xml, name, tag",
+    [
+        ('<param name="sleep" type="text"/>', "sleep", "param"),
+        ('<param argument="--getVar" type="text"/>', "getVar", "param"),
+        (
+            '<section name="searchList" title="Options"><param name="value" type="text"/></section>',
+            "searchList",
+            "section",
+        ),
+        ('<repeat name="respond" title="Options"><param name="value" type="text"/></repeat>', "respond", "repeat"),
+        (
+            (
+                '<conditional name="compile"><param name="choice" type="select"><option value="yes">Yes</option></param>'
+                '<when value="yes"><param name="value" type="text"/></when></conditional>'
+            ),
+            "compile",
+            "conditional",
+        ),
+    ],
+)
+def test_inputs_reserved_names(lint_ctx_xpath, input_xml, name, tag):
+    tool_source = get_xml_tool_source(f'<tool id="id" name="name"><inputs>{input_xml}</inputs></tool>')
+    run_lint_module(lint_ctx_xpath, inputs, tool_source)
+    assert lint_ctx_xpath.warn_messages == [
+        f"Input [{name}] uses a reserved Cheetah template name and may not be accessible in the command template."
+    ]
+    message = next(m for m in lint_ctx_xpath.message_list if m.linter == "InputsNameReserved")
+    assert message.xpath == f"/tool/inputs/{tag}"
+    assert not lint_ctx_xpath.error_messages
+
+
+def test_inputs_reserved_names_match_cheetah():
+    # Python's class attributes vary across supported interpreter versions.
+    class TemplateAttributeBaseline:
+        pass
+
+    cheetah_reserved_names = {
+        "NonNumericInputError",
+        "_CHEETAH_cacheCompilationResults",
+        "_CHEETAH_cacheDirForModuleFiles",
+        "_CHEETAH_cacheModuleFilesForTracebacks",
+        "_CHEETAH_cacheRegionClass",
+        "_CHEETAH_cacheStore",
+        "_CHEETAH_cacheStoreClass",
+        "_CHEETAH_cacheStoreIdPrefix",
+        "_CHEETAH_compileCache",
+        "_CHEETAH_compileLock",
+        "_CHEETAH_compilerClass",
+        "_CHEETAH_compilerInstance",
+        "_CHEETAH_compilerSettings",
+        "_CHEETAH_defaultBaseclassForTemplates",
+        "_CHEETAH_defaultClassNameForTemplates",
+        "_CHEETAH_defaultMainMethodName",
+        "_CHEETAH_defaultMainMethodNameForTemplates",
+        "_CHEETAH_defaultModuleGlobalsForTemplates",
+        "_CHEETAH_defaultModuleNameForTemplates",
+        "_CHEETAH_defaultPreprocessorClass",
+        "_CHEETAH_generatedModuleCode",
+        "_CHEETAH_keepRefToGeneratedCode",
+        "_CHEETAH_preprocessors",
+        "_CHEETAH_requiredCheetahClassAttributes",
+        "_CHEETAH_requiredCheetahClassMethods",
+        "_CHEETAH_requiredCheetahMethods",
+        "_CHEETAH_useCompilationCache",
+        "_addCheetahPlumbingCodeToClass",
+        "_compile",
+        "_createCacheRegion",
+        "_getCacheStore",
+        "_getCacheStoreIdPrefix",
+        "_getCompilerClass",
+        "_getCompilerSettings",
+        "_getTemplateAPIClassForIncludeDirectiveCompilation",
+        "_handleCheetahInclude",
+        "_initCheetahInstance",
+        "_normalizePreprocessorArg",
+        "_normalizePreprocessorSettings",
+        "_preprocessSource",
+        "_updateSettingsWithPreprocessTokens",
+        "application",
+        "compile",
+        "errorCatcher",
+        "generatedClassCode",
+        "generatedModuleCode",
+        "getCacheRegion",
+        "getCacheRegions",
+        "getFileContents",
+        "getVar",
+        "hasVar",
+        "i18n",
+        "refreshCache",
+        "request",
+        "respond",
+        "runAsMainProgram",
+        "searchList",
+        "serverSidePath",
+        "session",
+        "shutdown",
+        "sleep",
+        "subclass",
+        "transaction",
+        "varExists",
+        "webInput",
+    }
+    assert Template.Reserved_SearchList == cheetah_reserved_names | set(dir(TemplateAttributeBaseline))
+
+
+def test_inputs_reserved_name_command_collision(lint_ctx):
+    tool_source = get_xml_tool_source(
+        '<tool id="id" name="name"><command>echo $sleep</command>'
+        '<inputs><param name="sleep" type="text"/></inputs></tool>'
+    )
+    run_lint_module(lint_ctx, inputs, tool_source)
+    assert len(lint_ctx.warn_messages) == 1
+    with pytest.raises(TypeError, match="transaction"):
+        fill_template("echo $sleep", {"sleep": "value"}, retry=0)
+
+
+def test_inputs_reserved_names_nested_and_safe(lint_ctx):
+    tool_source = get_xml_tool_source("""<tool id="id" name="name"><inputs>
+        <param name="Sleep" type="text"/>
+        <param name="input" argument="--sleep" type="text"/>
+        <section name="options" title="Options"><param name="sleep" type="text"/></section>
+        <repeat name="repeats" title="Values"><param argument="--getVar" type="text"/></repeat>
+        <conditional name="choice">
+            <param name="searchList" type="select"><option value="yes">Yes</option></param>
+            <when value="yes"><param name="respond" type="text"/></when>
+        </conditional>
+    </inputs></tool>""")
+    run_lint_module(lint_ctx, inputs, tool_source)
+    assert not lint_ctx.warn_messages
+    assert not lint_ctx.error_messages
+    assert (
+        fill_template(
+            "$Sleep $input $options.sleep $repeats[0].getVar $choice.searchList $choice.respond",
+            {
+                "Sleep": "1",
+                "input": "2",
+                "options": {"sleep": "3"},
+                "repeats": [{"getVar": "4"}],
+                "choice": {"searchList": "5", "respond": "6"},
+            },
+        )
+        == "1 2 3 4 5 6"
+    )
 
 
 def test_inputs_param_type(lint_ctx):
@@ -2238,6 +2406,15 @@ def test_tests_expect_failure_output(lint_ctx):
     assert len(lint_ctx.error_messages) == 2
 
 
+def test_tests_expect_failure_invalid_inputs(lint_ctx):
+    tool_source = get_xml_tool_source(TESTS_EXPECT_FAILURE_INVALID_INPUTS)
+    run_lint_module(lint_ctx, tests, tool_source)
+    case_errors = [str(m) for m in lint_ctx.error_messages if m.linter == "TestsCaseValidation"]
+    assert len(case_errors) == 1
+    assert "Test 2: failed to validate test parameters" in case_errors[0]
+    assert "Invalid parameter name found taxidd" in case_errors[0]
+
+
 def test_tests_without_expectations(lint_ctx):
     tool_source = get_xml_tool_source(TESTS_WO_EXPECTATIONS)
     run_lint_module(lint_ctx, tests, tool_source)
@@ -2678,7 +2855,8 @@ def test_skip_by_module(lint_ctx):
 def test_list_linters():
     linter_names = Linter.list_listers()
     # make sure to add/remove a test for new/removed linters if this number changes
-    assert len(linter_names) == 148
+    # (157 = 149 tool linters + 8 repository data-table linters registered via list_linters)
+    assert len(linter_names) == 157
     assert "Linter" not in linter_names
     # make sure that linters from all modules are available
     for prefix in [

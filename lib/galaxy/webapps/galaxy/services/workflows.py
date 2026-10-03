@@ -1,8 +1,7 @@
 import logging
+import re
 from typing import (
     Any,
-    Optional,
-    Union,
 )
 
 from pydantic import UUID4
@@ -11,6 +10,8 @@ from galaxy import (
     exceptions,
     web,
 )
+from galaxy.config import GalaxyAppConfiguration
+from galaxy.exceptions import ConfigDoesNotAllowException
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
@@ -30,9 +31,15 @@ from galaxy.model import (
     WorkflowInvocation,
     WorkflowLandingRequest,
 )
+from galaxy.model.item_attrs import get_item_annotation_str
 from galaxy.schema.fields import DecodedDatabaseIdField
 from galaxy.schema.invocation import WorkflowInvocationResponse
 from galaxy.schema.schema import (
+    CuratedWorkflow,
+    CuratedWorkflowCollection,
+    CuratedWorkflowsIndexResponse,
+    CuratedWorkflowSourceEnum,
+    CuratedWorkflowsQueryPayload,
     InvocationsStateCounts,
     WorkflowIndexPayload,
 )
@@ -43,22 +50,67 @@ from galaxy.schema.workflows import (
     WorkflowExtractionPayload,
     WorkflowExtractionResult,
 )
+from galaxy.util.sanitize_html import sanitize_html
 from galaxy.util.tool_shed.tool_shed_registry import Registry
 from galaxy.webapps.galaxy.services.base import ServiceBase
 from galaxy.webapps.galaxy.services.notifications import NotificationService
 from galaxy.webapps.galaxy.services.sharable import ShareableService
+from galaxy.workflow import curated
 from galaxy.workflow.extract import (
+    collect_output_label_targets,
     extract_workflow,
     extract_workflow_by_ids,
+    normalize_output_label_key,
 )
 from galaxy.workflow.run import queue_invoke
 from galaxy.workflow.run_request import build_workflow_run_configs
+from galaxy.workflow.scheduling_manager import WorkflowSchedulingManager
 
 log = logging.getLogger(__name__)
+
+PREPARING_MESSAGE = (
+    "Galaxy is fetching the curated workflow catalog. This takes a few seconds the first time -- reload to see it."
+)
+UNAVAILABLE_MESSAGE = "Galaxy could not reach the curated workflow catalog at iwc.galaxyproject.org."
+CATALOG_MESSAGES = {
+    CuratedWorkflowSourceEnum.preparing: PREPARING_MESSAGE,
+    CuratedWorkflowSourceEnum.unavailable: UNAVAILABLE_MESSAGE,
+}
 
 
 def _to_extraction_result(stored_workflow: StoredWorkflow) -> WorkflowExtractionResult:
     return WorkflowExtractionResult.model_validate({"id": stored_workflow.id})
+
+
+def _sanitize_output_label(label: str) -> str:
+    label = re.sub(r"\s+", " ", label.strip())
+    if not label:
+        raise exceptions.RequestParameterInvalidException("output_labels contains an empty label")
+    return label[:255]
+
+
+def _validate_input_names(
+    dataset_names: list[str] | None,
+    dataset_collection_names: list[str] | None,
+) -> None:
+    """Validate user-supplied workflow input names (step labels).
+
+    Dataset and collection input names share one namespace (the single
+    ``step_labels`` set in ``extract_steps``), so uniqueness is checked across
+    the combined list. Only inspects names that were actually supplied — the
+    no-names default path (the ``"Input Dataset"`` constants) is untouched.
+    Names are kept raw: limits are enforced by rejection, never truncation.
+    """
+    provided = (dataset_names or []) + (dataset_collection_names or [])
+    seen: set[str] = set()
+    for name in provided:
+        if not name.strip():
+            raise exceptions.RequestParameterInvalidException("workflow input names must not be empty")
+        if len(name) > 255:
+            raise exceptions.RequestParameterInvalidException(f"workflow input name exceeds 255 characters: {name!r}")
+        if name in seen:
+            raise exceptions.RequestParameterInvalidException(f"workflow input names must be unique: {name!r}")
+        seen.add(name)
 
 
 class WorkflowsService(ServiceBase):
@@ -70,20 +122,24 @@ class WorkflowsService(ServiceBase):
         tool_shed_registry: Registry,
         notification_service: NotificationService,
         job_manager: JobManager,
+        workflow_scheduling_manager: WorkflowSchedulingManager,
+        config: GalaxyAppConfiguration,
     ):
         self._workflows_manager = workflows_manager
+        self._workflow_scheduling_manager = workflow_scheduling_manager
         self._workflow_contents_manager = workflow_contents_manager
         self._serializer = serializer
         self.shareable_service = ShareableService(workflows_manager, serializer, notification_service)
         self._tool_shed_registry = tool_shed_registry
         self._job_manager = job_manager
+        self._config = config
 
     def index(
         self,
         trans: ProvidesUserContext,
         payload: WorkflowIndexPayload,
         include_total_count: bool = False,
-    ) -> tuple[list[dict[str, Any]], Optional[int]]:
+    ) -> tuple[list[dict[str, Any]], int | None]:
         user = trans.user
         missing_tools = payload.missing_tools
         query, total_matches = self._workflows_manager.index_query(trans, payload, include_total_count)
@@ -139,12 +195,79 @@ class WorkflowsService(ServiceBase):
             return workflows, total_matches
         return rval, total_matches
 
+    def index_curated(
+        self,
+        trans: ProvidesUserContext,
+        payload: CuratedWorkflowsQueryPayload,
+    ) -> CuratedWorkflowsIndexResponse:
+        """List the curated workflow catalog for this Galaxy.
+
+        Never performs network I/O: in IWC mode the catalog is read from a
+        projection on disk that the celery beat task (or a cooldown-guarded
+        background thread) writes.
+        """
+        config = self._config
+        mode = config.curated_workflows_source
+        if mode == "off":
+            raise ConfigDoesNotAllowException("The curated workflows catalog is not enabled on this Galaxy instance.")
+
+        if mode == "local":
+            rows, total = self._workflows_manager.curated_index_query(trans, payload, config.curated_workflow_owners)
+            return CuratedWorkflowsIndexResponse(
+                source=CuratedWorkflowSourceEnum.local,
+                total_matches=total,
+                workflows=[self._local_to_curated(trans, wf) for wf in rows],
+            )
+
+        page = curated.list_catalog(
+            config.curated_workflows_path,
+            search=payload.search,
+            sort_by=payload.sort_by,
+            sort_desc=payload.sort_desc,
+            offset=payload.offset,
+            limit=payload.limit,
+            max_age_seconds=config.iwc_manifest_refresh_interval,
+            toolbox=trans.app.toolbox_or_none,
+            is_admin=trans.user_is_admin,
+        )
+        source = CuratedWorkflowSourceEnum(page.source)
+        return CuratedWorkflowsIndexResponse(
+            source=source,
+            total_matches=page.total_matches,
+            workflows=[CuratedWorkflow(**entry) for entry in page.entries],
+            message=CATALOG_MESSAGES.get(source),
+            collections=[CuratedWorkflowCollection(name=name, count=count) for name, count in page.collections],
+        )
+
+    def _local_to_curated(self, trans: ProvidesUserContext, wf: StoredWorkflow) -> CuratedWorkflow:
+        encoded = trans.security.encode_id(wf.id)
+        source_metadata = wf.latest_workflow.source_metadata or {}
+        # Owner-scoped on both counts. ``annotations`` and ``tags`` collect
+        # associations from more than just the owner -- an admin, or a legacy row
+        # -- so on an anonymous endpoint the plain relationships risk publishing
+        # someone else's notes as if they described the workflow.
+        owner_annotation = get_item_annotation_str(trans.sa_session, wf.user, wf)
+        return CuratedWorkflow(
+            id=encoded,
+            name=wf.name,
+            # Sanitized on output too: the client renders this through v-html on
+            # an anonymous endpoint, so don't rely on write-time sanitization alone.
+            description=sanitize_html(owner_annotation or ""),
+            tags=trans.tag_handler.get_tags_list(wf.owner_tags),
+            collections=[],
+            number_of_steps=wf.latest_workflow.step_count,
+            update_time=wf.update_time,
+            owner=wf.user.username,
+            stored_workflow_id=encoded,
+            trs_url=source_metadata.get("trs_url"),
+        )
+
     def invoke_workflow(
         self,
-        trans,
+        trans: ProvidesHistoryContext,
         workflow_id,
         payload: InvokeWorkflowPayload,
-    ) -> Union[WorkflowInvocationResponse, list[WorkflowInvocationResponse]]:
+    ) -> WorkflowInvocationResponse | list[WorkflowInvocationResponse]:
         if trans.anonymous:
             raise exceptions.AuthenticationRequired("You need to be logged in to run workflows.")
         trans.check_user_activation()
@@ -170,7 +293,7 @@ class WorkflowsService(ServiceBase):
                 tool["tool_id"],
                 tool_version=tool["tool_version"],
                 tool_uuid=tool["tool_uuid"],
-                exact=require_exact_tool_versions,
+                exact=bool(require_exact_tool_versions),
                 user=trans.user,
             )
         ]
@@ -193,6 +316,7 @@ class WorkflowsService(ServiceBase):
                 trans=trans,
                 workflow=workflow,
                 workflow_run_config=run_config,
+                workflow_scheduling_manager=self._workflow_scheduling_manager,
                 request_params=work_request_params,
                 flush=False,
             )
@@ -217,6 +341,7 @@ class WorkflowsService(ServiceBase):
     ) -> WorkflowExtractionResult:
         if trans.user is None:
             raise exceptions.AuthenticationRequired("Workflow extraction requires an authenticated user.")
+        _validate_input_names(payload.dataset_names, payload.dataset_collection_names)
         stored_workflow = extract_workflow(
             trans,
             user=trans.user,
@@ -249,6 +374,7 @@ class WorkflowsService(ServiceBase):
             hdca_ids=payload.hdca_ids,
             dataset_names=payload.dataset_names,
             dataset_collection_names=payload.dataset_collection_names,
+            output_labels=payload.output_labels,
         )
         return _to_extraction_result(stored_workflow)
 
@@ -296,17 +422,57 @@ class WorkflowsService(ServiceBase):
             for hdca in output_hdcas:
                 dataset_collection_manager.get_dataset_collection_instance(trans, "history", hdca.id)
 
-    def delete(self, trans, workflow_id):
+        _validate_input_names(payload.dataset_names, payload.dataset_collection_names)
+
+        output_targets = collect_output_label_targets(
+            trans,
+            job_manager=self._job_manager,
+            job_ids=payload.job_ids,
+            implicit_collection_jobs_ids=payload.implicit_collection_jobs_ids,
+        )
+        seen_output_ids = set()
+        seen_resolved_outputs = set()
+        seen_labels = set()
+        for output_label in payload.output_labels:
+            sanitized_label = _sanitize_output_label(output_label.label)
+            output_label.label = sanitized_label
+            output_key = normalize_output_label_key(trans, output_label.kind, output_label.id)
+            output_label.id = output_key[1]
+            if output_key in seen_output_ids:
+                raise exceptions.RequestParameterInvalidException(
+                    f"output_labels contains duplicate {output_label.kind} id {output_label.id}"
+                )
+            seen_output_ids.add(output_key)
+
+            output_target = output_targets.get(output_key)
+            if output_target is None:
+                raise exceptions.RequestParameterInvalidException(
+                    f"output_labels includes {output_label.kind} id {output_label.id} "
+                    "that is not produced by a selected extraction step"
+                )
+            if output_target.step_key in seen_resolved_outputs:
+                raise exceptions.RequestParameterInvalidException(
+                    f"output_labels contains multiple labels for output {output_target.output_name!r}"
+                )
+            seen_resolved_outputs.add(output_target.step_key)
+
+            if sanitized_label in seen_labels:
+                raise exceptions.RequestParameterInvalidException(
+                    f"output_labels contains duplicate workflow output label {sanitized_label!r}"
+                )
+            seen_labels.add(sanitized_label)
+
+    def delete(self, trans: ProvidesUserContext, workflow_id):
         workflow_to_delete = self._workflows_manager.get_stored_workflow(trans, workflow_id)
         self._workflows_manager.check_security(trans, workflow_to_delete)
         self._workflows_manager.delete(workflow_to_delete)
 
-    def undelete(self, trans, workflow_id):
+    def undelete(self, trans: ProvidesUserContext, workflow_id):
         workflow_to_undelete = self._workflows_manager.get_stored_workflow(trans, workflow_id)
         self._workflows_manager.check_security(trans, workflow_to_undelete)
         self._workflows_manager.undelete(workflow_to_undelete)
 
-    def get_versions(self, trans, workflow_id, instance: bool):
+    def get_versions(self, trans: ProvidesUserContext, workflow_id, instance: bool):
         stored_workflow: StoredWorkflow = self._workflows_manager.get_stored_accessible_workflow(
             trans, workflow_id, by_stored_id=not instance
         )
@@ -315,13 +481,13 @@ class WorkflowsService(ServiceBase):
             for i, w in enumerate(reversed(stored_workflow.workflows))
         ]
 
-    def invocation_counts(self, trans, workflow_id, instance: bool) -> InvocationsStateCounts:
+    def invocation_counts(self, trans: ProvidesUserContext, workflow_id, instance: bool) -> InvocationsStateCounts:
         stored_workflow: StoredWorkflow = self._workflows_manager.get_stored_accessible_workflow(
             trans, workflow_id, by_stored_id=not instance
         )
         return stored_workflow.invocation_counts()
 
-    def get_workflow_menu(self, trans, payload):
+    def get_workflow_menu(self, trans: ProvidesUserContext, payload):
         ids_in_menu = [x.stored_workflow_id for x in trans.user.stored_workflow_menu_entries]
         workflows = self._get_workflows_list(
             trans,
@@ -331,7 +497,7 @@ class WorkflowsService(ServiceBase):
 
     def refactor(
         self,
-        trans: ProvidesUserContext,
+        trans: ProvidesHistoryContext,
         workflow_id: DecodedDatabaseIdField,
         payload: RefactorRequest,
         instance: bool,
@@ -339,7 +505,9 @@ class WorkflowsService(ServiceBase):
         stored_workflow = self._workflows_manager.get_stored_workflow(trans, workflow_id, by_stored_id=not instance)
         return self._workflow_contents_manager.refactor(trans, stored_workflow, payload)
 
-    def show_workflow(self, trans, workflow_id, instance, legacy, version) -> StoredWorkflowDetailed:
+    def show_workflow(
+        self, trans: ProvidesHistoryContext, workflow_id, instance, legacy, version
+    ) -> StoredWorkflowDetailed:
         stored_workflow = self._workflows_manager.get_stored_workflow(trans, workflow_id, by_stored_id=not instance)
         if stored_workflow.importable is False and stored_workflow.user != trans.user and not trans.user_is_admin:
             wf_count = 0 if not trans.user else trans.user.count_stored_workflow_user_assocs(stored_workflow)
@@ -377,7 +545,7 @@ class WorkflowsService(ServiceBase):
         return None
 
     def _create_landing_request_association(
-        self, trans: ProvidesUserContext, landing_uuid: Optional[UUID4], invocations: list[WorkflowInvocation]
+        self, trans: ProvidesUserContext, landing_uuid: UUID4 | None, invocations: list[WorkflowInvocation]
     ):
         """Create association between landing request and workflow invocations."""
         # Look up the workflow landing request by UUID

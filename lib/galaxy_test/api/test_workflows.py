@@ -10,8 +10,6 @@ from tempfile import mkdtemp
 from typing import (
     Any,
     cast,
-    Optional,
-    Union,
 )
 from uuid import uuid4
 
@@ -28,6 +26,7 @@ from galaxy.exceptions import error_codes
 from galaxy.tool_util_models import UserToolSource
 from galaxy.util import UNKNOWN
 from galaxy.util.unittest_utils import (
+    skip_if_dockstore_down,
     skip_if_github_down,
     skip_if_workflowhub_down,
 )
@@ -44,6 +43,7 @@ from galaxy_test.base.populators import (
     WorkflowPopulator,
 )
 from galaxy_test.base.workflow_fixtures import (
+    DEFAULT_FILE_DATASET_INPUT_LOCATION,
     NESTED_WORKFLOW_WITH_CONDITIONAL_SUBWORKFLOW_AND_DISCONNECTED_MAP_OVER_SOURCE,
     WORKFLOW_FLAT_CROSS_PRODUCT,
     WORKFLOW_INPUTS_AS_OUTPUTS,
@@ -79,6 +79,11 @@ from galaxy_test.base.workflow_fixtures import (
 )
 from ._framework import ApiTestCase
 from .sharable import SharingApiTests
+
+
+def _default_file_location(test_http_server) -> str:
+    return test_http_server.get_url(remote_url=DEFAULT_FILE_DATASET_INPUT_LOCATION, file_path="test-data/1.bed")
+
 
 WORKFLOW_SIMPLE = """
 class: GalaxyWorkflow
@@ -209,23 +214,23 @@ class BaseWorkflowsApiTestCase(ApiTestCase, RunsWorkflowFixtures):
 
     def _setup_workflow_run(
         self,
-        workflow: Optional[dict[str, Any]] = None,
+        workflow: dict[str, Any] | None = None,
         inputs_by: str = "step_id",
-        history_id: Optional[str] = None,
-        workflow_id: Optional[str] = None,
+        history_id: str | None = None,
+        workflow_id: str | None = None,
     ) -> tuple[dict[str, Any], str, str]:
         return self.workflow_populator.setup_workflow_run(workflow, inputs_by, history_id, workflow_id)
 
     def _ds_entry(self, history_content):
         return self.dataset_populator.ds_entry(history_content)
 
-    def _invocation_details(self, workflow_id: Optional[str], invocation_id: str, **kwds):
+    def _invocation_details(self, workflow_id: str | None, invocation_id: str, **kwds):
         invocation_details_response = self._get(f"invocations/{invocation_id}", data=kwds)
         self._assert_status_code_is(invocation_details_response, 200)
         invocation_details = invocation_details_response.json()
         return invocation_details
 
-    def _run_jobs(self, has_workflow, history_id: str, **kwds) -> Union[dict[str, Any], RunJobsSummary]:
+    def _run_jobs(self, has_workflow, history_id: str, **kwds) -> dict[str, Any] | RunJobsSummary:
         return self.workflow_populator.run_workflow(has_workflow, history_id=history_id, **kwds)
 
     def _run_workflow(self, has_workflow, history_id: str, **kwds) -> RunJobsSummary:
@@ -264,7 +269,7 @@ class BaseWorkflowsApiTestCase(ApiTestCase, RunsWorkflowFixtures):
         self._assert_status_code_is(show_response, 200)
         return show_response.json()
 
-    def _latest_instance_id(self, workflow_id: str, history_id: Optional[str] = None) -> str:
+    def _latest_instance_id(self, workflow_id: str, history_id: str | None = None) -> str:
         # Get latest version, to get latest instance id and confirm the name has changed
         latest_download = self._download_workflow(workflow_id, style="run", history_id=history_id)
         latest_instance_id = latest_download["workflow_id"]
@@ -1443,6 +1448,37 @@ steps:
             step_annotations = {step["annotation"] for step in imported_workflow["steps"].values()}
             assert "input1 description" in step_annotations
 
+    def test_long_annotations_round_trip(self):
+        # Multibyte on purpose: the bound counts characters, the dropped indexes counted bytes.
+        annotation = "\u00e9" * 30_000
+        workflow_id = self._upload_yaml_workflow(WORKFLOW_SIMPLE)
+        editable = self._download_workflow(workflow_id, style="editor")
+        editable["annotation"] = annotation
+        next(iter(editable["steps"].values()))["annotation"] = annotation
+        self._assert_status_code_is(self._update_workflow(workflow_id, editable), 200)
+
+        updated = self._download_workflow(workflow_id)
+        assert updated["annotation"] == annotation
+        assert annotation in {step["annotation"] for step in updated["steps"].values()}
+
+    @pytest.mark.parametrize("target", ["workflow", "step"])
+    @pytest.mark.parametrize("operation", ["import", "update"])
+    def test_annotation_size_limit(self, target, operation):
+        # Exact bound lives in galaxy.model; this covers both legacy write paths returning a 400.
+        oversized = "a" * 100_000
+        workflow_id = self._upload_yaml_workflow(WORKFLOW_SIMPLE)
+        editable = self._download_workflow(workflow_id, style="editor")
+        if target == "workflow":
+            editable["annotation"] = oversized
+        else:
+            next(iter(editable["steps"].values()))["annotation"] = oversized
+        if operation == "import":
+            response = self._post("workflows", data={"workflow": json.dumps(editable)})
+        else:
+            response = self._update_workflow(workflow_id, editable)
+        self._assert_status_code_is(response, 400)
+        assert_error_message_contains(response, "Annotation too large")
+
     def test_import_subworkflows(self):
         def get_subworkflow_content_id(workflow_id):
             workflow_contents = self._download_workflow(workflow_id, style="editor")
@@ -1488,8 +1524,8 @@ steps:
             other_import_response = self.__import_workflow(workflow_id)
             self._assert_status_code_is(other_import_response, 403)
 
-    def test_url_import(self, mock_http_server):
-        url = mock_http_server.get_url(
+    def test_url_import(self, test_http_server):
+        url = test_http_server.get_url(
             remote_url="https://raw.githubusercontent.com/galaxyproject/galaxy/release_19.09/test/base/data/test_workflow_1.ga",
             file_path="lib/galaxy_test/base/data/test_workflow_1.ga",
             content_type="application/json",
@@ -1555,6 +1591,7 @@ steps:
         workflow = self._download_workflow(workflow_id)
         assert workflow["readme"] == big_but_valid_readme
 
+    @skip_if_dockstore_down
     def test_trs_import(self):
         trs_payload = {
             "archive_source": "trs_tool",
@@ -1584,6 +1621,7 @@ steps:
         reuploaded_workflow = self._download_workflow(reuploaded_workflow_id)
         assert reuploaded_workflow.get("source_metadata") is None
 
+    @skip_if_dockstore_down
     def test_trs_import_from_dockstore_trs_url(self):
         trs_payload = {
             "archive_source": "trs_tool",
@@ -1731,6 +1769,7 @@ steps:
         subworkflow = self._get_subworkflow_dict(workflow)
         assert subworkflow.get("source_metadata") == {"url": base64_url}
 
+    @skip_if_dockstore_down
     @skip_if_github_down
     def test_import_ga_workflow_with_trs_url_subworkflow(self):
         """Test importing a .ga workflow where a subworkflow is referenced via a TRS URL."""
@@ -1756,6 +1795,7 @@ steps:
         assert source_metadata["trs_version_id"] == "master"
         assert source_metadata["trs_url"] == trs_url
 
+    @skip_if_dockstore_down
     @skip_if_github_down
     def test_import_ga_workflow_with_trs_id_subworkflow(self):
         """Test importing a .ga workflow where a subworkflow is referenced via TRS server + tool ID + version."""
@@ -1901,6 +1941,31 @@ steps:
         with self._different_user(anon=True):
             response = self._get("workflows?show_shared=true&search=is:shared_with_me")
             self._assert_status_code_is(response, 400)
+
+    def test_curated_disabled_by_default(self):
+        # The API test suite runs with curated_workflows_source="off", so this smoke-tests
+        # route registration without any chance of a catalog download. A 400 here instead of
+        # a 403 would mean /api/workflows/{workflow_id} shadowed the route and Galaxy tried
+        # to decode the literal "curated" as an encoded id. Behaviour with the feature on is
+        # covered by test/integration/test_curated_workflows.py.
+        response = self._get("workflows/curated")
+        self._assert_status_code_is(response, 403)
+        self._assert_error_code_is(response, error_codes.error_codes_by_name["CONFIG_DOES_NOT_ALLOW"])
+
+    def test_curated_rejects_out_of_range_limit(self):
+        # Rejected during request validation, before the handler and independently of
+        # whether the feature is enabled -- so this pins the route's own parameter contract.
+        response = self._get("workflows/curated", data={"limit": 0})
+        self._assert_status_code_is(response, 400)
+        assert "limit" in response.json()["err_msg"]
+
+    def test_curated_anonymous_reaches_the_endpoint(self):
+        # Discovery for logged-out users is the point of the tab, so the route must not be
+        # gated on authentication -- it fails on config, not on a missing API key.
+        with self._different_user(anon=True):
+            response = self._get("workflows/curated")
+            self._assert_status_code_is(response, 403)
+            self._assert_error_code_is(response, error_codes.error_codes_by_name["CONFIG_DOES_NOT_ALLOW"])
 
     def test_import_published(self):
         workflow_id = self.workflow_populator.simple_workflow("test_import_published", publish=True)
@@ -2650,7 +2715,7 @@ steps:
                 in reverse_content
             )
 
-    def __run_cat_workflow(self, inputs_by, history_id: Optional[str] = None):
+    def __run_cat_workflow(self, inputs_by, history_id: str | None = None):
         workflow = self.workflow_populator.load_workflow(name="test_for_run")
         workflow["steps"]["0"]["uuid"] = str(uuid4())
         workflow["steps"]["1"]["uuid"] = str(uuid4())
@@ -2836,7 +2901,12 @@ test_data:
             )
             assert unpaused_dataset["state"] == "ok"
             contents = self.dataset_populator.get_history_dataset_content(history_id, hid=7, assert_ok=False)
-            assert contents == "fail\nsuccess\n", contents
+            assert contents.splitlines() == [
+                "identifier fail",
+                "safe_identifier fail",
+                "identifier success",
+                "safe_identifier success",
+            ], contents
             replaced_hda_id = run_dict["outputs"][0]["id"]
             replaced_hda = self.dataset_populator.get_history_dataset_details(
                 history_id, dataset_id=replaced_hda_id, wait=True, assert_ok=False
@@ -3349,6 +3419,225 @@ input_data:
             )
             invocation = self.workflow_populator.get_invocation(summary.invocation_id, step_details=True)
             assert invocation["state"] == "failed"
+
+    @skip_without_tool("expression_parse_int")
+    @skip_without_tool("expression_forty_two")
+    def test_pick_value_runtime_null(self):
+        # parseInt yields NaN, serialized as null - pick must wait for it, then fall back.
+        with self.dataset_populator.test_history() as history_id:
+            summary = self._run_workflow(
+                """class: GalaxyWorkflow
+steps:
+  runtime_null:
+    tool_id: expression_parse_int
+    state:
+      input1: not a number
+  fallback:
+    tool_id: expression_forty_two
+    state: {}
+  pick:
+    type: pick_value
+    state:
+      mode: first_non_null
+    in:
+      input_0: runtime_null/out1
+      input_1: fallback/out1
+outputs:
+  picked:
+    outputSource: pick/output
+test_data: {}
+""",
+                history_id=history_id,
+            )
+            invocation = self.workflow_populator.get_invocation(summary.invocation_id, step_details=True)
+            picked_content = self.dataset_populator.get_history_dataset_content(
+                history_id, content_id=invocation["outputs"]["picked"]["id"]
+            )
+            assert picked_content == "42"
+
+    @skip_without_tool("exit_code_from_file")
+    @skip_without_tool("__BUILD_LIST__")
+    @skip_without_tool("__FILTER_FAILED_DATASETS__")
+    def test_pick_value_input_failed(self):
+        # Failed is not null - the failed dataset is picked for downstream filters.
+        with self.dataset_populator.test_history() as history_id:
+            summary = self._run_workflow(
+                """class: GalaxyWorkflow
+inputs:
+  exit_code:
+    type: data
+steps:
+  branch:
+    tool_id: exit_code_from_file
+    in:
+      input: exit_code
+  pick:
+    type: pick_value
+    state:
+      mode: first_or_skip
+    in:
+      input_0: branch/out_file1
+  list:
+    tool_id: __BUILD_LIST__
+    in:
+      datasets_0|input: pick/output
+      datasets_1|input: exit_code
+    state:
+      datasets:
+      - id_cond:
+          id_select: id
+      - id_cond:
+          id_select: id
+  filter_failed:
+    tool_id: __FILTER_FAILED_DATASETS__
+    in:
+      input: list/output
+outputs:
+  picked:
+    outputSource: pick/output
+  filtered:
+    outputSource: filter_failed/output
+""",
+                test_data="""
+exit_code:
+  content: "1"
+  type: File
+""",
+                history_id=history_id,
+                assert_ok=False,
+                wait=True,
+            )
+            invocation = self.workflow_populator.get_invocation(summary.invocation_id, step_details=True)
+            assert invocation["state"] in ("scheduled", "completed"), invocation
+            assert invocation["messages"] == [], invocation
+            picked = self.dataset_populator.get_history_dataset_details(
+                history_id, content_id=invocation["outputs"]["picked"]["id"], assert_ok=False
+            )
+            assert picked["state"] == "error", picked
+            filtered = self.dataset_populator.get_history_collection_details(
+                history_id,
+                content_id=invocation["output_collections"]["filtered"]["id"],
+                assert_ok=False,
+            )
+            assert len(filtered["elements"]) == 1, filtered
+            assert filtered["elements"][0]["object"]["state"] == "ok", filtered
+
+    @skip_without_tool("job_properties")
+    @skip_without_tool("cat1")
+    def test_pick_value_input_paused(self):
+        # A paused input is resumable, so pick waits rather than failing.
+        workflow_id = self._upload_yaml_workflow("""class: GalaxyWorkflow
+steps:
+  job_props:
+    tool_id: job_properties
+    state:
+      thebool: true
+      failbool: true
+  branch:
+    tool_id: cat1
+    in:
+      input1: job_props/out_file1
+  pick:
+    type: pick_value
+    state:
+      mode: first_or_skip
+    in:
+      input_0: branch/out_file1
+outputs:
+  picked:
+    outputSource: pick/output
+""")
+        with self.dataset_populator.test_history() as history_id:
+            invocation_id = self.workflow_populator.invoke_workflow(workflow_id, history_id=history_id).json()["id"]
+
+            def step_output_id(step_label):
+                invocation = self.workflow_populator.get_invocation(invocation_id, step_details=True)
+                invocation_step = next(
+                    (step for step in invocation["steps"] if step["workflow_step_label"] == step_label), None
+                )
+                if invocation_step and (output := invocation_step["outputs"].get("out_file1")):
+                    return output["id"]
+                return None
+
+            failed_dataset_id = wait_on(lambda: step_output_id("job_props"), "job_props output to be created")
+            failed_state = self.dataset_populator.wait_for_dataset(history_id, failed_dataset_id, assert_ok=False)
+            assert failed_state == "error", failed_state
+            failed_dataset = self.dataset_populator.get_history_dataset_details(
+                history_id, content_id=failed_dataset_id, wait=False
+            )
+            paused_dataset_id = wait_on(lambda: step_output_id("branch"), "branch output to be created")
+            paused_state = self.dataset_populator.wait_for_dataset(history_id, paused_dataset_id, assert_ok=False)
+            assert paused_state == "paused", paused_state
+            invocation = self.workflow_populator.get_invocation(invocation_id, step_details=True)
+            pick_step = next(step for step in invocation["steps"] if step["workflow_step_label"] == "pick")
+            assert pick_step["state"] == "new", pick_step
+            assert pick_step["outputs"] == {}, pick_step
+            self.dataset_populator.run_tool(
+                tool_id="job_properties",
+                inputs={
+                    "thebool": "false",
+                    "failbool": "false",
+                    "rerun_remap_job_id": failed_dataset["creating_job"],
+                },
+                history_id=history_id,
+            )
+            self.workflow_populator.wait_for_workflow(workflow_id, invocation_id, history_id, assert_ok=False)
+            invocation = self.workflow_populator.get_invocation(invocation_id, step_details=True)
+            assert invocation["state"] in ("scheduled", "completed"), invocation
+            picked = self.dataset_populator.get_history_dataset_details(
+                history_id, content_id=invocation["outputs"]["picked"]["id"], assert_ok=False
+            )
+            assert picked["state"] == "ok", picked
+
+    @skip_without_tool("job_properties")
+    @skip_without_tool("cat1")
+    @skip_without_tool("expression_forty_two")
+    def test_pick_value_first_non_null_ignores_paused_later_input(self):
+        # A paused input after the picked one must not block the invocation.
+        with self.dataset_populator.test_history() as history_id:
+            summary = self._run_workflow(
+                """class: GalaxyWorkflow
+steps:
+  job_props:
+    tool_id: job_properties
+    state:
+      thebool: true
+      failbool: true
+  branch:
+    tool_id: cat1
+    in:
+      input1: job_props/out_file1
+  first:
+    tool_id: expression_forty_two
+    state: {}
+  pick:
+    type: pick_value
+    state:
+      mode: first_non_null
+    in:
+      input_0: first/out1
+      input_1: branch/out_file1
+outputs:
+  picked:
+    outputSource: pick/output
+  paused:
+    outputSource: branch/out_file1
+test_data: {}
+""",
+                history_id=history_id,
+                assert_ok=False,
+                wait=True,
+            )
+            invocation = self.workflow_populator.get_invocation(summary.invocation_id, step_details=True)
+            assert invocation["state"] in ("scheduled", "completed"), invocation
+            paused = self.dataset_populator.get_history_dataset_details(
+                history_id, content_id=invocation["outputs"]["paused"]["id"], assert_ok=False
+            )
+            assert paused["state"] == "paused", paused
+            picked_content = self.dataset_populator.get_history_dataset_content(
+                history_id, content_id=invocation["outputs"]["picked"]["id"], wait=False
+            )
+            assert picked_content == "42"
 
     def test_pick_value_first_or_skip(self):
         with self.dataset_populator.test_history() as history_id:
@@ -5904,6 +6193,42 @@ test_data:
             )
             assert details["elements"][0]["object"]["file_ext"] == "csv"
 
+    @skip_without_tool("collection_creates_pair")
+    def test_change_datatype_static_collection_output(self):
+        # The collection here is structured up front, so its elements already exist when the
+        # action runs - the counterpart to test_change_datatype_discovered_outputs, where they
+        # do not and the action has to be deferred to discovery instead.
+        with self.dataset_populator.test_history() as history_id:
+            jobs_summary = self._run_workflow(
+                """
+class: GalaxyWorkflow
+inputs:
+  input: data
+steps:
+  split:
+    tool_id: collection_creates_pair
+    in:
+      input1: input
+    out:
+        paired_output:
+          change_datatype: csv
+outputs:
+  output:
+    outputSource: split/paired_output
+test_data:
+  input: "1\n2\n3\n4"
+""",
+                history_id=history_id,
+            )
+            inv = self.workflow_populator.get_invocation(jobs_summary.invocation_id, step_details=True)
+            details = self.dataset_populator.get_history_collection_details(
+                history_id=history_id, content_id=inv["output_collections"]["output"]["id"]
+            )
+            # Both, so that changing only the first element would still fail.
+            forward, reverse = details["elements"]
+            assert forward["object"]["file_ext"] == "csv"
+            assert reverse["object"]["file_ext"] == "csv"
+
     @skip_without_tool("collection_type_source_map_over")
     def test_mapping_and_subcollection_mapping(self):
         with self.dataset_populator.test_history() as history_id:
@@ -7250,6 +7575,58 @@ data_input:
             # Optional step parameter without default value will not be recorded.
             assert "int_input" not in invocation["input_step_parameters"]
 
+    @skip_without_tool("column_param_list")
+    def test_run_with_multiple_int_parameter(self):
+        workflow = """
+class: GalaxyWorkflow
+inputs:
+  input: data
+  columns:
+    type: [integer]
+outputs:
+  output:
+    outputSource: column_param_list/output2
+steps:
+  column_param_list:
+    tool_id: column_param_list
+    in:
+      input1: input
+      col: columns
+      col_names: columns
+"""
+        test_data = """
+input:
+  value: 2.tabular
+  type: File
+  file_type: tabular
+columns:
+  value: {columns}
+  type: raw
+"""
+        with self.dataset_populator.test_history() as history_id:
+            run_response = self._run_workflow(
+                workflow,
+                test_data=test_data.format(columns="[1, 2]"),
+                history_id=history_id,
+                wait=True,
+                assert_ok=True,
+            )
+            invocation = self.workflow_populator.get_invocation(run_response.invocation_id)
+            assert invocation["input_step_parameters"]["columns"]["parameter_value"] == [1, 2]
+            content = self.dataset_populator.get_history_dataset_content(
+                history_id, dataset_id=invocation["outputs"]["output"]["id"]
+            )
+            assert "col 1,2" in content, content
+
+            response = self.workflow_populator.run_workflow(
+                workflow,
+                test_data=test_data.format(columns="[1, two]"),
+                history_id=history_id,
+                expected_response=400,
+                assert_ok=False,
+            )
+            assert "columns: an integer is required" in response["err_msg"]
+
     def test_run_with_int_parameter_nested(self):
         with self.dataset_populator.test_history() as history_id:
             workflow = self.workflow_populator.load_workflow_from_resource("test_subworkflow_with_integer_input")
@@ -7284,10 +7661,10 @@ data_input:
             content = self.dataset_populator.get_history_dataset_content(history_id)
             assert len(content.splitlines()) == 3, content
 
-    def test_run_with_default_file_dataset_input(self):
+    def test_run_with_default_file_dataset_input(self, test_http_server):
         with self.dataset_populator.test_history() as history_id:
             run_response = self._run_workflow(
-                WORKFLOW_WITH_DEFAULT_FILE_DATASET_INPUT,
+                WORKFLOW_WITH_DEFAULT_FILE_DATASET_INPUT.format(location=_default_file_location(test_http_server)),
                 history_id=history_id,
                 wait=True,
                 assert_ok=True,
@@ -7300,10 +7677,10 @@ data_input:
             assert dataset_details["file_ext"] == "txt"
             assert "chr1" in dataset_details["peek"]
 
-    def test_run_with_default_file_dataset_input_and_explicit_input(self):
+    def test_run_with_default_file_dataset_input_and_explicit_input(self, test_http_server):
         with self.dataset_populator.test_history() as history_id:
             run_response = self._run_workflow(
-                WORKFLOW_WITH_DEFAULT_FILE_DATASET_INPUT,
+                WORKFLOW_WITH_DEFAULT_FILE_DATASET_INPUT.format(location=_default_file_location(test_http_server)),
                 test_data="""
 default_file_input:
   value: 1.fasta
@@ -7324,10 +7701,10 @@ default_file_input:
                 in dataset_details["peek"]
             )
 
-    def test_run_with_default_file_in_step_inline(self):
+    def test_run_with_default_file_in_step_inline(self, test_http_server):
         with self.dataset_populator.test_history() as history_id:
             self._run_workflow(
-                WORKFLOW_WITH_STEP_DEFAULT_FILE_DATASET_INPUT,
+                WORKFLOW_WITH_STEP_DEFAULT_FILE_DATASET_INPUT.format(location=_default_file_location(test_http_server)),
                 history_id=history_id,
                 wait=True,
                 assert_ok=True,
@@ -10250,7 +10627,7 @@ outer_input:
                 t["representation"]["name"] == TOOL_WITH_SHELL_COMMAND["name"] for t in owned
             ), f"Expected an owned UDT after workflow import: {owned}"
 
-    def _build_user_defined_tool_run_workflow_dict(self, content_id: Optional[str], tool_uuid: str) -> dict[str, Any]:
+    def _build_user_defined_tool_run_workflow_dict(self, content_id: str | None, tool_uuid: str) -> dict[str, Any]:
         return {
             "a_galaxy_workflow": "true",
             "name": "wf running a UDT",

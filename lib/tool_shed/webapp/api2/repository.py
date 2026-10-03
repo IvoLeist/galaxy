@@ -9,7 +9,6 @@ migrated here so the legacy WSGI controller can be deleted.
 import logging
 import mimetypes
 import os
-from typing import Optional
 
 from fastapi import Form
 from starlette.requests import Request
@@ -176,7 +175,7 @@ class FastAPILegacyInstall:
     def get_required_repo_info_dict(
         self,
         trans: SessionRequestContext = DependsOnTrans,
-        encoded_str: Optional[str] = Form(default=None),
+        encoded_str: str | None = Form(default=None),
     ) -> dict:
         return get_required_repo_info_dict_from_encoded(trans, encoded_str)
 
@@ -206,8 +205,6 @@ class FastAPILegacyInstall:
         image_file: str,
     ) -> FileResponse:
         repository = get_repository_in_tool_shed(self.app, repository_id)
-        if not repository:
-            raise ObjectNotFound("Repository not found.")
         repo_files_dir = repository.repo_path(self.app)
         path_to_file = get_absolute_path_to_file_in_repository(repo_files_dir, image_file)
         if not path_to_file or not os.path.exists(path_to_file):

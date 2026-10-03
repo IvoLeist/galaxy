@@ -120,7 +120,7 @@ def evaluate_tool(tmpdir: str, working_directory: str, import_store_directory: s
     tool_evaluator.set_compute_environment(compute_environment=SharedComputeEnvironment(job_io=job_io, job=job_io.job))
     with open(os.path.join(working_directory, "tool_script.sh"), "a") as out:
         command_line, version_command_line, extra_filenames, environment_variables, *_ = tool_evaluator.build()
-        out.write(f'{version_command_line or ""}{command_line}')
+        out.write(f"{version_command_line or ''}{command_line}")
 
 
 def main() -> None:

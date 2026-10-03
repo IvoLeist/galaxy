@@ -1,4 +1,3 @@
-import re
 import time
 from typing import ClassVar
 from unittest import SkipTest
@@ -1034,6 +1033,21 @@ class TestImportExportHistory(ApiTestCase, ImportExportTests):
         super().setUp()
         self._set_up_populators()
 
+    def test_history_exports_job_id_resolves(self):
+        history_id = self.dataset_populator.new_history()
+        self.dataset_populator.new_dataset(history_id, content="1 2 3", wait=True)
+        self.dataset_populator.prepare_export(history_id, {})
+
+        exports_response = self._get(f"histories/{history_id}/exports")
+        exports_response.raise_for_status()
+        exports = exports_response.json()
+        assert exports, "Expected at least one export record"
+        job_id = exports[0]["job_id"]
+
+        job_response = self._get(f"jobs/{job_id}")
+        job_response.raise_for_status()
+        assert job_response.json()["id"] == job_id
+
 
 class TestSharingHistory(ApiTestCase, BaseHistories, SharingApiTests):
     """Tests specific for the particularities of sharing Histories."""
@@ -1226,15 +1240,7 @@ class TestSharingHistory(ApiTestCase, BaseHistories, SharingApiTests):
         # history/make_private is a legacy controller route outside /api, so it
         # only accepts a browser session, not an API key.
         with Session() as session:
-            login_page = session.get(urljoin(self.url, "login/start"))
-            self._assert_status_code_is(login_page, 200)
-            csrf_token_match = re.search(r'session_csrf_token = "(.*)"', login_page.text)
-            assert csrf_token_match
-            login_response = session.post(
-                urljoin(self.url, "user/login"),
-                data={"login": email, "password": "testpass", "session_csrf_token": csrf_token_match.group(1)},
-            )
-            self._assert_status_code_is(login_response, 200)
+            self._login_browser_session(session, email, "testpass")
             make_private_response = session.post(
                 urljoin(self.url, "history/make_private"), data={"history_id": history_id}
             )

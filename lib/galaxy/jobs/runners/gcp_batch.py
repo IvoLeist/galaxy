@@ -99,6 +99,7 @@ class GoogleCloudBatchJobRunner(AsynchronousJobRunner):
     """
 
     runner_name = "GoogleCloudBatchJobRunner"
+    always_handle_metadata_externally = True
 
     def __init__(self, app, nworkers, **kwargs):
         """Initialize the Google Cloud Batch job runner."""
@@ -119,8 +120,7 @@ class GoogleCloudBatchJobRunner(AsynchronousJobRunner):
     def _init_batch_client(self):
         """Initialize the Google Cloud Batch client."""
         # Set up authentication
-        service_account_file = self.runner_params.get("service_account_file")
-        if service_account_file:
+        if service_account_file := self.runner_params.get("service_account_file"):
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = service_account_file
 
         try:
@@ -313,7 +313,9 @@ class GoogleCloudBatchJobRunner(AsynchronousJobRunner):
         task_spec = batch_v1.TaskSpec()
         task_spec.runnables = [runnable]
         task_spec.max_retry_count = params["max_retry_count"]
-        task_spec.max_run_duration = max_run_duration
+        # Setting this attribute automatically converts a duration string to the
+        # right Duration type, but the declared type is Duration, not str.
+        task_spec.max_run_duration = max_run_duration  # type: ignore[assignment]
 
         # Set compute resources
         compute_resource = batch_v1.ComputeResource()
@@ -419,8 +421,7 @@ class GoogleCloudBatchJobRunner(AsynchronousJobRunner):
         allocation_policy.instances = [instance_template]
 
         # Configure service account for job execution
-        service_account_email = params.get("service_account_email")
-        if service_account_email:
+        if service_account_email := params.get("service_account_email"):
             service_account = batch_v1.ServiceAccount()
             service_account.email = service_account_email
             allocation_policy.service_account = service_account
@@ -569,8 +570,7 @@ class GoogleCloudBatchJobRunner(AsynchronousJobRunner):
             nfs_mount_path = DEFAULT_NFS_MOUNT_PATH
 
         # Build Docker volume arguments from docker_extra_volumes parameter
-        docker_volumes_param = params.get("docker_extra_volumes")
-        if docker_volumes_param:
+        if docker_volumes_param := params.get("docker_extra_volumes"):
             docker_volume_args = parse_docker_volumes_param(docker_volumes_param)
         else:
             # Default to CVMFS mount if no extra volumes specified
@@ -794,23 +794,12 @@ class GoogleCloudBatchJobRunner(AsynchronousJobRunner):
             # Return job_state to continue monitoring - might be temporary error
             return job_state
 
-    def finish_job(self, job_state: AsynchronousJobState) -> None:
-        # The Batch task's job script is built with include_metadata=False
-        # (queue_job above), so the remote task never runs the metadata
-        # command and never writes the metadata/metadata_results_* files
-        # the default (directory) metadata strategy expects at finish.
-        # Run the external set_meta script handler-side instead, as the
-        # Kubernetes and Pulsar runners do.
-        self._handle_metadata_externally(job_state.job_wrapper, resolve_requirements=True)
-        super().finish_job(job_state)
-
     def stop_job(self, job_wrapper):
         """Stop a job running on Google Cloud Batch."""
         job = job_wrapper.get_job()
         log.debug("Starting stop_job for job %s", job.id)
 
-        batch_job_name = job.get_job_runner_external_id()
-        if batch_job_name:
+        if batch_job_name := job.get_job_runner_external_id():
             if not self.runner_params.get("delete_completed_jobs", True):
                 try:
                     job_path = f"projects/{self.runner_params['project_id']}/locations/{self.runner_params['region']}/jobs/{batch_job_name}"

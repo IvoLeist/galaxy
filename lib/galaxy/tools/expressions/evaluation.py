@@ -70,9 +70,9 @@ def _unterminated_message(expression: str, scan: str, consumed: int, description
 def do_eval(
     expression: str,
     jobinput: CWLObjectType,
-    javascript_requirements: Optional[list[JavascriptRequirement]] = None,
-    outdir: Optional[str] = None,
-    tmpdir: Optional[str] = None,
+    javascript_requirements: list[JavascriptRequirement] | None = None,
+    outdir: str | None = None,
+    tmpdir: str | None = None,
     context: Optional["CWLOutputType"] = None,
     sandbox_command: Sequence[str] | None = None,
 ):

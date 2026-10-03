@@ -6,7 +6,7 @@ import BootstrapVue from "bootstrap-vue";
 import { createPinia, getActivePinia, PiniaVuePlugin } from "pinia";
 import Vue from "vue";
 
-import { localizationPlugin, vueRxShortcutPlugin } from "@/components/plugins";
+import { localizationPlugin } from "@/components/plugins";
 import { vGTooltip } from "@/directives/vGTooltip";
 import { vNoSanitizeHtml } from "@/directives/vNoSanitizeHtml";
 import { vSanitizeHtml } from "@/directives/vSanitizeHtml";
@@ -27,9 +27,6 @@ Vue.directive("no-sanitize-html", vNoSanitizeHtml);
 
 // localization filters and directives
 Vue.use(localizationPlugin);
-
-// rxjs utilities
-Vue.use(vueRxShortcutPlugin);
 
 function getOrCreatePinia() {
     // We sometimes use this utility mounting function in a context where there

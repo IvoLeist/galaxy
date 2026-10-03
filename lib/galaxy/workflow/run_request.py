@@ -3,9 +3,7 @@ import logging
 import uuid
 from typing import (
     Any,
-    Optional,
     TYPE_CHECKING,
-    Union,
 )
 
 from pydantic import ValidationError
@@ -35,18 +33,21 @@ from galaxy.tool_util_models.parameters import (
     DataRequestUri,
     FileRequestUri,
 )
-from galaxy.tools.parameters.basic import ParameterValueError
+from galaxy.tools.parameters.basic import (
+    IntegerToolParameter,
+    ParameterValueError,
+)
 from galaxy.tools.parameters.meta import expand_workflow_inputs
 from galaxy.tools.parameters.workflow_utils import NO_REPLACEMENT
 from galaxy.workflow.modules import WorkflowModuleInjector
 from galaxy.workflow.resources import get_resource_mapper_function
 
 if TYPE_CHECKING:
+    from galaxy.managers.context import ProvidesHistoryContext
     from galaxy.model import (
         Workflow,
         WorkflowStep,
     )
-    from galaxy.webapps.base.webapp import GalaxyWebTransaction
 
 INPUT_STEP_TYPES = ["data_input", "data_collection_input", "parameter_input"]
 
@@ -87,19 +88,19 @@ class WorkflowRunConfig:
     def __init__(
         self,
         target_history: "History",
-        replacement_dict: Optional[dict[str, Any]] = None,
-        inputs: Optional[dict[int, Any]] = None,
-        param_map: Optional[dict[int, Any]] = None,
+        replacement_dict: dict[str, Any] | None = None,
+        inputs: dict[int, Any] | None = None,
+        param_map: dict[int, Any] | None = None,
         allow_tool_state_corrections: bool = False,
         copy_inputs_to_history: bool = False,
         use_cached_job: bool = False,
-        resource_params: Optional[dict[int, Any]] = None,
+        resource_params: dict[int, Any] | None = None,
         requires_materialization: bool = False,
-        preferred_object_store_id: Optional[str] = None,
-        preferred_outputs_object_store_id: Optional[str] = None,
-        preferred_intermediate_object_store_id: Optional[str] = None,
-        effective_outputs: Optional[list[EffectiveOutput]] = None,
-        on_complete: Optional[list[dict[str, Any]]] = None,
+        preferred_object_store_id: str | None = None,
+        preferred_outputs_object_store_id: str | None = None,
+        preferred_intermediate_object_store_id: str | None = None,
+        effective_outputs: list[EffectiveOutput] | None = None,
+        on_complete: list[dict[str, Any]] | None = None,
     ) -> None:
         self.target_history = target_history
         self.replacement_dict = replacement_dict or {}
@@ -263,10 +264,10 @@ def _flatten_step_params(param_dict: dict, prefix: str = "") -> dict:
 
 
 def _get_target_history(
-    trans: "GalaxyWebTransaction",
+    trans: "ProvidesHistoryContext",
     workflow: "Workflow",
     payload: dict[str, Any],
-    param_keys: Optional[list[list]] = None,
+    param_keys: list[list] | None = None,
     index: int = 0,
 ) -> History:
     param_keys = param_keys or []
@@ -308,7 +309,7 @@ def _get_target_history(
 
 
 def build_workflow_run_configs(
-    trans: "GalaxyWebTransaction", workflow: "Workflow", payload: dict[str, Any]
+    trans: "ProvidesHistoryContext", workflow: "Workflow", payload: dict[str, Any]
 ) -> list[WorkflowRunConfig]:
     app = trans.app
     allow_tool_state_corrections = payload.get("allow_tool_state_corrections", False)
@@ -390,6 +391,9 @@ def build_workflow_run_configs(
                 input_param = step.module.get_runtime_inputs(step.module)["input"]
                 try:
                     input_param.validate(input_dict, trans=trans)
+                    if isinstance(input_param, IntegerToolParameter) and input_param.multiple:
+                        # The run form submits one integer per line.
+                        normalized_inputs[key] = input_param.to_python(input_dict, trans.app)
                 except ParameterValueError as e:
                     raise exceptions.RequestParameterInvalidException(
                         f"{step.label or step.order_index + 1}: {e.message_suffix}"
@@ -534,7 +538,7 @@ def build_workflow_run_configs(
 
 
 def workflow_run_config_to_request(
-    trans: "GalaxyWebTransaction", run_config: WorkflowRunConfig, workflow: "Workflow"
+    trans: "ProvidesHistoryContext", run_config: WorkflowRunConfig, workflow: "Workflow"
 ) -> WorkflowInvocation:
     param_types = WorkflowRequestInputParameter.types
 
@@ -569,7 +573,7 @@ def workflow_run_config_to_request(
         if step.type == "subworkflow":
             subworkflow = step.subworkflow
             assert subworkflow
-            effective_outputs: Optional[list[EffectiveOutput]] = None
+            effective_outputs: list[EffectiveOutput] | None = None
             if run_config.preferred_intermediate_object_store_id or run_config.preferred_outputs_object_store_id:
                 step_outputs = step.workflow_outputs
                 effective_outputs = []
@@ -654,7 +658,7 @@ def workflow_request_to_run_config(
     history = workflow_invocation.history
     replacement_dict = {}
     inputs: dict[
-        int, Union[HistoryDatasetAssociation, HistoryDatasetCollectionAssociation, str, int, float, bool, None]
+        int, HistoryDatasetAssociation | HistoryDatasetCollectionAssociation | str | int | float | bool | None
     ] = {}
     param_map = {}
     resource_params = {}

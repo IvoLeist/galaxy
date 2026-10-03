@@ -1,4 +1,5 @@
 import os
+import re
 from contextlib import contextmanager
 from typing import (
     Any,
@@ -54,7 +55,7 @@ class UsesCeleryTasks:
     @classmethod
     def handle_galaxy_config_kwds(cls, config: dict[str, Any]) -> None:
         config["enable_celery_tasks"] = True
-        config["metadata_strategy"] = f'{config.get("metadata_strategy", "directory")}_celery'
+        config["metadata_strategy"] = f"{config.get('metadata_strategy', 'directory')}_celery"
         celery_conf: dict[str, Any] = config.get("celery_conf", {})
         celery_conf.update(DEFAULT_CELERY_CONFIG)
         config["celery_conf"] = celery_conf
@@ -151,7 +152,7 @@ class UsesApiTestCaseMixin:
         return user, self._post(f"users/{user['id']}/api_key", admin=True).json()
 
     @contextmanager
-    def _different_user(self, email: Optional[str] = None, anon=False):
+    def _different_user(self, email: str | None = None, anon=False):
         """Use in test cases to switch get/post operations to act as new user
 
         ..code-block:: python
@@ -178,6 +179,18 @@ class UsesApiTestCaseMixin:
             self.user_api_key = original_api_key
             self.galaxy_interactor.api_key = original_interactor_key
             self.galaxy_interactor.cookies = original_cookies
+
+    def _login_browser_session(self, session: requests.Session, email: str, password: str) -> None:
+        """Log ``session`` in through the login form, for routes that need a browser session rather than an API key."""
+        login_page = session.get(urljoin(self.url, "login/start"))
+        assert_status_code_is(login_page, 200)
+        csrf_token_match = re.search(r'session_csrf_token = "(.*)"', login_page.text)
+        assert csrf_token_match
+        login_response = session.post(
+            urljoin(self.url, "user/login"),
+            data={"login": email, "password": password, "session_csrf_token": csrf_token_match.group(1)},
+        )
+        assert_status_code_is(login_response, 200)
 
     def _get_current_history_id(self) -> str:
         """Return the current session's history ID (works for anonymous users)."""
@@ -302,7 +315,5 @@ class AnonymousGalaxyInteractor(ApiTestInteractor):
     def __init__(self, test_case):
         super().__init__(test_case)
 
-    def _get_user_key(
-        self, user_key: Optional[str], admin_key: Optional[str], test_user: Optional[str] = None
-    ) -> Optional[str]:
+    def _get_user_key(self, user_key: str | None, admin_key: str | None, test_user: str | None = None) -> str | None:
         return None

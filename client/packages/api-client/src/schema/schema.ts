@@ -64,6 +64,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/agents/history-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * History Summary
+         * @description **Warning**: This API is unstable and may change without notice.
+         */
+        post: operations["history_summary_api_ai_agents_history_summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/agents/query": {
         parameters: {
             query?: never;
@@ -361,6 +381,28 @@ export interface paths {
          * @description Decode a given id.
          */
         get: operations["encode_id_api_configuration_encode__decoded_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/configuration/extra_preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return the administrator-defined extra user preferences
+         * @description Return the sections and inputs configured in `user_preferences_extra_conf.yml`.
+         *
+         *     A user's values for them are at `/api/users/{user_id}/extra_preferences`.
+         */
+        get: operations["extra_preferences_api_configuration_extra_preferences_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -963,6 +1005,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datasets/{history_content_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Downloads the dataset, redirecting to the object store when possible.
+         * @description Downloads the whole dataset file. Clients must follow the 302 redirect this route may return.
+         */
+        get: operations["download_api_datasets__history_content_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Returns download metadata (size, filename) for the dataset.
+         * @description Downloads the whole dataset file. Clients must follow the 302 redirect this route may return.
+         */
+        head: operations["download_api_datasets__history_content_id__download_head"];
+        patch?: never;
+        trace?: never;
+    };
     "/api/datasets/{history_content_id}/metadata_file": {
         parameters: {
             query?: never;
@@ -1504,6 +1570,23 @@ export interface paths {
         get: operations["file_sources__templates_index"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/file_source_templates/{template_id}/{template_version}/form-data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get dynamic data for a file source template form. */
+        post: operations["file_sources__template_form_data"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2506,6 +2589,30 @@ export interface paths {
          * @description Streams the dataset for download or the contents preview to be displayed in a browser.
          */
         head: operations["history_contents_display_api_histories__history_id__contents__history_content_id__display_head"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/histories/{history_id}/contents/{history_content_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Downloads the dataset, redirecting to the object store when possible.
+         * @description Downloads the whole dataset file. Clients must follow the 302 redirect this route may return.
+         */
+        get: operations["history_contents_download_api_histories__history_id__contents__history_content_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Returns download metadata (size, filename) for the dataset.
+         * @description Downloads the whole dataset file. Clients must follow the 302 redirect this route may return.
+         */
+        head: operations["history_contents_download_api_histories__history_id__contents__history_content_id__download_head"];
         patch?: never;
         trace?: never;
     };
@@ -4027,6 +4134,12 @@ export interface paths {
         /**
          * Sends a notification to a list of recipients (users, groups or roles).
          * @description Sends a notification to a list of recipients (users, groups or roles).
+         *
+         *     Administrators can address arbitrary recipients. Other authenticated users can only
+         *     submit the request categories Galaxy accepts from users (currently
+         *     ``tool_installation_request``); for those, the recipients are resolved server-side and
+         *     the ``recipients`` field is ignored. Submissions are rate-limited per user
+         *     (``send_notification_rate_limit``).
          */
         post: operations["send_notification_api_notifications_post"];
         /** Deletes a list of notifications received by the user in a single request. */
@@ -4896,10 +5009,28 @@ export interface paths {
         };
         /** Show */
         get: operations["show_api_roles__id__get"];
-        put?: never;
+        /** Update a role's name, description, users and groups */
+        put: operations["update_api_roles__id__put"];
         post?: never;
         /** Delete */
         delete: operations["delete_api_roles__id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/roles/{id}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the groups associated with a role */
+        get: operations["groups_api_roles__id__groups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4933,6 +5064,23 @@ export interface paths {
         put?: never;
         /** Undelete */
         post: operations["undelete_api_roles__id__undelete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/roles/{id}/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the users associated with a role */
+        get: operations["users_api_roles__id__users_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5559,6 +5707,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tools/{tool_id}/interop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return Galaxy's meta model description of the tool's metadata, inputs, and outputs. */
+        get: operations["tools__interop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tools/{tool_id}/parameter_landing_request_schema": {
         parameters: {
             query?: never;
@@ -5605,6 +5770,74 @@ export interface paths {
         };
         /** Return a JSON schema description of the tool's inputs for test case construction. */
         get: operations["tools__parameter_test_case_xml_schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tools/{tool_id}/versions/{tool_version}/interop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return Galaxy's meta model description of the tool's metadata, inputs, and outputs. */
+        get: operations["tools__versioned_interop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tools/{tool_id}/versions/{tool_version}/parameter_landing_request_schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return a JSON schema description of the tool's inputs for the tool landing request API. */
+        get: operations["tools__versioned_parameter_landing_request_schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tools/{tool_id}/versions/{tool_version}/parameter_request_schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return a JSON schema description of the tool's inputs for the tool request API. */
+        get: operations["tools__versioned_parameter_request_schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tools/{tool_id}/versions/{tool_version}/parameter_test_case_xml_schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return a JSON schema description of the tool's inputs for test case construction. */
+        get: operations["tools__versioned_parameter_test_case_xml_schema"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6050,6 +6283,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/{user_id}/extra_preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return the user's values for the administrator-defined extra preferences
+         * @description The sections and inputs are described by `GET /api/configuration/extra_preferences`.
+         */
+        get: operations["get_extra_preferences_api_users__user_id__extra_preferences_get"];
+        /**
+         * Change values of the administrator-defined extra preferences
+         * @description Inputs left out of the payload keep their stored value; null clears one.
+         *
+         *     Unlike account data, these stay writable when `enable_account_interface` is
+         *     off: they configure integrations such as file sources, not the account.
+         */
+        put: operations["update_extra_preferences_api_users__user_id__extra_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{user_id}/favorites/order": {
         parameters: {
             query?: never;
@@ -6101,6 +6361,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/{user_id}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return the groups this user is a member of. */
+        get: operations["get_user_groups_api_users__user_id__groups_get"];
+        /** Replace the groups this user is a member of. */
+        put: operations["set_user_groups_api_users__user_id__groups_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{user_id}/objectstore_usage": {
         parameters: {
             query?: never;
@@ -6111,6 +6389,23 @@ export interface paths {
         /** Return the user's object store usage summary broken down by object store ID */
         get: operations["get_user_objectstore_usage_api_users__user_id__objectstore_usage_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{user_id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set a new password for a user. */
+        put: operations["reset_user_password_api_users__user_id__password_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6147,7 +6442,8 @@ export interface paths {
          * @description Return a list of roles associated with this user. Only admins can see user roles.
          */
         get: operations["get_user_roles_api_users__user_id__roles_get"];
-        put?: never;
+        /** Replace the roles associated with this user. The user's private role is kept. */
+        put: operations["set_user_roles_api_users__user_id__roles_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6509,6 +6805,26 @@ export interface paths {
          * @description Lists stored workflows viewable by the user.
          */
         get: operations["index_api_workflows_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/curated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists curated workflows for discovery.
+         * @description Lists workflows curated for this Galaxy, or the public IWC catalog.
+         */
+        get: operations["curated_api_workflows_curated_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8217,8 +8533,18 @@ export interface components {
             history_id: unknown;
             /** Landing Uuid */
             landing_uuid?: unknown;
+            /** Preferred Object Store Id */
+            preferred_object_store_id?: unknown;
             /** Targets */
             targets: unknown;
+        };
+        /** Body_history_summary_api_ai_agents_history_summary_post */
+        Body_history_summary_api_ai_agents_history_summary_post: {
+            /**
+             * History Id
+             * @description Encoded id of the history to summarize.
+             */
+            history_id: string;
         };
         /** Body_submit_run_ga4gh_wes_v1_runs_post */
         Body_submit_run_ga4gh_wes_v1_runs_post: {
@@ -9105,6 +9431,8 @@ export interface components {
             description?: string | null;
             /** Device */
             device?: string | null;
+            /** Enable Direct Download */
+            enable_direct_download?: boolean | null;
             /** Name */
             name?: string | null;
             /** Object Expires After Days */
@@ -10067,6 +10395,8 @@ export interface components {
              * @default Organization
              */
             class: string;
+            /** Description */
+            description?: string | null;
             /** Email */
             email?: string | null;
             /** Fax Number */
@@ -10121,6 +10451,132 @@ export interface components {
             dialect: components["schemas"]["CsvDialect"];
             /** Message */
             message: string;
+        };
+        /** CuratedWorkflow */
+        CuratedWorkflow: {
+            /**
+             * Collections
+             * @description Names of the curated collections this workflow belongs to.
+             */
+            collections?: string[];
+            /**
+             * Description
+             * @description Short annotation describing the workflow.
+             * @default
+             */
+            description: string;
+            /**
+             * DOI
+             * @description The DOI of the workflow, if it has one.
+             */
+            doi?: string | null;
+            /**
+             * External URL
+             * @description Link to the workflow on the external catalog that published it.
+             */
+            external_url?: string | null;
+            /**
+             * ID
+             * @description Stable identifier for this curated workflow. The encoded stored workflow id when the catalog is served from this Galaxy, otherwise the identifier of the workflow in the public catalog.
+             */
+            id: string;
+            /**
+             * Missing Tools
+             * @description Ids of the tools this workflow uses that are not installed on this Galaxy in any version. Empty when the workflow will run here after import; null when this Galaxy did not check.
+             */
+            missing_tools?: string[] | null;
+            /**
+             * Name
+             * @description The name of the workflow.
+             */
+            name: string;
+            /**
+             * Number of Steps
+             * @description The number of steps in the workflow.
+             */
+            number_of_steps?: number | null;
+            /**
+             * Owner
+             * @description Username of the account owning the workflow on this Galaxy, if it is hosted here.
+             */
+            owner?: string | null;
+            /**
+             * Release
+             * @description The release version of the workflow, if published with one.
+             */
+            release?: string | null;
+            /**
+             * Stored Workflow ID
+             * @description Encoded id of the stored workflow on this Galaxy. Only set when the workflow is hosted here, in which case it can be run directly.
+             */
+            stored_workflow_id?: string | null;
+            /**
+             * Tags
+             * @description Tags associated with the workflow.
+             */
+            tags?: string[];
+            /**
+             * TRS Fallback URL
+             * @description TRS URL of the workflow's development branch, to import when the TRS server has not yet published the release that trs_url pins.
+             */
+            trs_fallback_url?: string | null;
+            /**
+             * TRS URL
+             * @description Full TRS URL of the workflow version to import, pinned to its release when it has one.
+             */
+            trs_url?: string | null;
+            /**
+             * Update Time
+             * @description The last time the workflow was updated.
+             */
+            update_time?: string | null;
+        };
+        /** CuratedWorkflowCollection */
+        CuratedWorkflowCollection: {
+            /**
+             * Count
+             * @description How many curated workflows belong to the collection.
+             */
+            count: number;
+            /**
+             * Name
+             * @description The collection's name.
+             */
+            name: string;
+        };
+        /**
+         * CuratedWorkflowSourceEnum
+         * @description Where the curated workflow listing was drawn from.
+         * @enum {string}
+         */
+        CuratedWorkflowSourceEnum: "iwc" | "local" | "preparing" | "unavailable";
+        /** CuratedWorkflowsIndexResponse */
+        CuratedWorkflowsIndexResponse: {
+            /**
+             * Collections
+             * @description Every collection in the catalog with its size, largest first, regardless of the search. Empty when the listing has no collections, as for workflows curated on this Galaxy.
+             */
+            collections?: components["schemas"]["CuratedWorkflowCollection"][];
+            /**
+             * Message
+             * @description Human readable explanation shown when no workflows could be listed.
+             */
+            message?: string | null;
+            /**
+             * Source
+             * @description Where the listing came from: the public IWC catalog, this Galaxy's own curated owners, or a state indicating the catalog is being prepared or could not be reached.
+             */
+            source: components["schemas"]["CuratedWorkflowSourceEnum"];
+            /**
+             * Total Matches
+             * @description Total number of curated workflows matching the query, ignoring limit and offset.
+             */
+            total_matches: number;
+            /**
+             * Workflows
+             * @description The requested page of curated workflows.
+             */
+            workflows?: components["schemas"]["CuratedWorkflow"][];
         };
         /**
          * CustomArchivedHistoryView
@@ -11774,6 +12230,11 @@ export interface components {
              */
             deleted: boolean;
             /**
+             * Display name
+             * @description Free-form name shown in place of the username. Not unique, and never used in URLs, slugs or as an identifier.
+             */
+            display_name?: string | null;
+            /**
              * Email
              * @description Email of the user
              */
@@ -12338,6 +12799,11 @@ export interface components {
              */
             id: string;
             /**
+             * Implicit Collection Jobs ID
+             * @description Encoded ID of the ImplicitCollectionJobs group this job belongs to, or null if the job was not mapped over a collection.
+             */
+            implicit_collection_jobs_id?: string | null;
+            /**
              * Inputs
              * @description Dictionary mapping all the tool inputs (by name) to the corresponding data references.
              * @default {}
@@ -12639,6 +13105,75 @@ export interface components {
          * @enum {string}
          */
         ExtraFilesEntryClass: "Directory" | "File";
+        /**
+         * ExtraPreferenceInputDefinition
+         * @description One input of an administrator-defined extra preferences section.
+         *
+         *     Keys beyond the declared fields are form options the administrator set in
+         *     ``user_preferences_extra_conf.yml`` and are passed through unchanged.
+         */
+        ExtraPreferenceInputDefinition: {
+            /** Help */
+            help?: string | null;
+            /** Label */
+            label?: string | null;
+            /**
+             * Multiple
+             * @description Whether a `select` input takes a list of its options.
+             * @default false
+             */
+            multiple: boolean;
+            /**
+             * Name
+             * @description Name of the input within its section.
+             */
+            name: string;
+            /**
+             * Options
+             * @description `[label, value]` or `[label, value, selected]` entries of a `select` input.
+             */
+            options?: ([string, string | number | boolean] | [string, string | number | boolean, boolean])[] | null;
+            /**
+             * Required
+             * @description Whether a stored value is protected from being cleared or set to an empty string.
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Store
+             * @description `vault` when the value is kept in Galaxy's vault rather than in the user's preferences.
+             */
+            store?: string | null;
+            /**
+             * Type
+             * @description Form input type, such as `text`, `select`, `boolean`, `password` or `secret`. Without a type, an input with `options` is a `select` and any other input is `text`. The extra preferences endpoints never return values of `password` and `secret` inputs.
+             */
+            type?: string | null;
+            /** Default value */
+            value?: string | number | boolean | (string | number | boolean)[] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ExtraPreferenceSecretState */
+        ExtraPreferenceSecretState: {
+            /**
+             * Is set
+             * @description Whether a value is stored. The value itself is never returned.
+             */
+            is_set: boolean;
+        };
+        /** ExtraPreferenceSectionDefinition */
+        ExtraPreferenceSectionDefinition: {
+            /** Description */
+            description: string;
+            /** Inputs */
+            inputs?: components["schemas"]["ExtraPreferenceInputDefinition"][];
+            /**
+             * Name
+             * @description Name of the section, the first part of each stored key.
+             */
+            name: string;
+        };
         /** ExtractInputAction */
         ExtractInputAction: {
             /**
@@ -12736,6 +13271,11 @@ export interface components {
             history_id: string;
             /** Landing Uuid */
             landing_uuid?: string | null;
+            /**
+             * Preferred Object Store Id
+             * @description Optional preferred storage location id used when creating fetched datasets.
+             */
+            preferred_object_store_id?: string | null;
             /** Targets */
             targets: (
                 | components["schemas"]["DataElementsTarget"]
@@ -13091,6 +13631,11 @@ export interface components {
             id: string;
             /** Name */
             name: string | null;
+            /**
+             * Requires Oauth2 Authorization
+             * @default false
+             */
+            requires_oauth2_authorization: boolean;
             /** Secrets */
             secrets?: components["schemas"]["TemplateSecret"][] | null;
             /**
@@ -13114,10 +13659,19 @@ export interface components {
                 | "zenodo"
                 | "rspace"
                 | "dataverse"
+                | "cbioportal"
                 | "huggingface"
+                | "github"
                 | "iiif"
+                | "ipfs"
+                | "mavedb"
                 | "omero"
-                | "ssh";
+                | "ssh"
+                | "openbis"
+                | "ckan"
+                | "commoncrawl"
+                | "gitlab"
+                | "arc";
             /** Variables */
             variables?:
                 | (
@@ -13125,6 +13679,7 @@ export interface components {
                       | components["schemas"]["TemplateVariableInteger"]
                       | components["schemas"]["TemplateVariablePathComponent"]
                       | components["schemas"]["TemplateVariableBoolean"]
+                      | components["schemas"]["TemplateVariableSelect"]
                   )[]
                 | null;
             /**
@@ -13584,7 +14139,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "dataset_input" | "dataset_output" | "collection_input" | "collection_output";
+            type: "dataset_input" | "dataset_output" | "collection_input" | "collection_output" | "dataset_element";
         };
         /** GraphNode */
         GraphNode: {
@@ -13598,6 +14153,10 @@ export interface components {
             hid?: number | null;
             /** Id */
             id: string;
+            /** Job State Summary */
+            job_state_summary?: {
+                [key: string]: number;
+            } | null;
             /** Name */
             name?: string | null;
             /**
@@ -13666,6 +14225,8 @@ export interface components {
              */
             name: string;
         };
+        /** GroupModelListResponse */
+        GroupModelListResponse: components["schemas"]["GroupModel"][];
         /** GroupQuota */
         GroupQuota: {
             /**
@@ -16529,7 +17090,10 @@ export interface components {
             /** Message */
             message: string;
         };
-        /** InferredColumnMapping */
+        /**
+         * InferredColumnMapping
+         * @description Parse-log entry recording how one workbook column was interpreted.
+         */
         InferredColumnMapping: {
             /** Column Index */
             column_index: number;
@@ -17289,27 +17853,6 @@ export interface components {
              */
             generate_version?: string | null;
             /**
-             * Histories
-             * @description Histories associated with the invocation.
-             */
-            histories?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * History dataset collections
-             * @description History dataset collections associated with the invocation.
-             */
-            history_dataset_collections?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * History datasets
-             * @description History datasets associated with the invocation.
-             */
-            history_datasets?: {
-                [key: string]: unknown;
-            } | null;
-            /**
              * Workflow ID
              * @description The workflow this invocation has been triggered for.
              * @example 0123456789ABCDEF
@@ -17320,20 +17863,6 @@ export interface components {
              * @description Raw galaxy-flavored markdown contents of the report.
              */
             invocation_markdown?: string | null;
-            /**
-             * Invocations
-             * @description Other invocations associated with the invocation.
-             */
-            invocations?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Jobs
-             * @description Jobs associated with the invocation.
-             */
-            jobs?: {
-                [key: string]: unknown;
-            } | null;
             /**
              * Markdown
              * @description Raw galaxy-flavored markdown contents of the report.
@@ -17362,13 +17891,6 @@ export interface components {
              * @description The name of the user who owns this report.
              */
             username: string;
-            /**
-             * Workflows
-             * @description Workflows associated with the invocation.
-             */
-            workflows?: {
-                [key: string]: unknown;
-            } | null;
         };
         /**
          * InvocationSerializationView
@@ -18331,6 +18853,7 @@ export interface components {
             | "waiting"
             | "queued"
             | "running"
+            | "finishing"
             | "ok"
             | "error"
             | "failed"
@@ -19932,6 +20455,7 @@ export interface components {
                 | components["schemas"]["MessageNotificationContent"]
                 | components["schemas"]["NewSharedItemNotificationContent"]
                 | components["schemas"]["StorageOperationNotificationContent"]
+                | components["schemas"]["ToolInstallationRequestCreateContent"]
                 | components["schemas"]["BroadcastNotificationContent"];
             /**
              * Expiration time
@@ -20021,6 +20545,7 @@ export interface components {
                 | components["schemas"]["MessageNotificationContent"]
                 | components["schemas"]["NewSharedItemNotificationContent"]
                 | components["schemas"]["StorageOperationNotificationContent"]
+                | components["schemas"]["ToolInstallationRequestNotificationContent"]
                 | components["schemas"]["BroadcastNotificationContent"];
             /**
              * Create time
@@ -20173,7 +20698,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "aws_s3" | "azure_blob" | "boto3" | "disk" | "generic_s3" | "onedata" | "rucio" | "irods";
+            type: "aws_s3" | "azure_blob" | "boto3" | "cloud" | "disk" | "generic_s3" | "onedata" | "rucio" | "irods";
             /** Variables */
             variables?:
                 | (
@@ -20181,6 +20706,7 @@ export interface components {
                       | components["schemas"]["TemplateVariableInteger"]
                       | components["schemas"]["TemplateVariablePathComponent"]
                       | components["schemas"]["TemplateVariableBoolean"]
+                      | components["schemas"]["TemplateVariableSelect"]
                   )[]
                 | null;
             /**
@@ -20241,6 +20767,40 @@ export interface components {
          * @enum {string}
          */
         OutputCompareType: "diff" | "re_match" | "sim_size" | "re_match_multiline" | "contains" | "image_diff";
+        /** OutputDiscoveryJobMessage */
+        OutputDiscoveryJobMessage: {
+            /** Code Desc */
+            code_desc?: string | null;
+            /** Desc */
+            desc: string | null;
+            /** Error Level */
+            error_level: number;
+            /**
+             * Type
+             * @constant
+             */
+            type: "output_discovery";
+        };
+        /** OutputLabelHint */
+        OutputLabelHint: {
+            /**
+             * ID
+             * @description Decoded ID of the concrete HDA/HDCA output to expose.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Kind
+             * @description Whether the output ID identifies an HDA or an HDCA.
+             * @enum {string}
+             */
+            kind: "hda" | "hdca";
+            /**
+             * Label
+             * @description Workflow output label to assign to the exposed output.
+             */
+            label: string;
+        };
         /** OutputReferenceByLabel */
         OutputReferenceByLabel: {
             /**
@@ -20268,6 +20828,18 @@ export interface components {
              * @default output
              */
             output_name: string | null;
+        };
+        /** PackageRequirement */
+        PackageRequirement: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "package";
+            /** Version */
+            version?: string | null;
         };
         /**
          * PageContentFormat
@@ -20414,6 +20986,12 @@ export interface components {
         PageRevisionDetails: {
             /** Content */
             content?: string | null;
+            /**
+             * Content for Editor
+             * @description Raw text contents of the last page revision (type dependent on content_format).
+             * @default
+             */
+            content_editor: string | null;
             content_format?: components["schemas"]["PageContentFormat"] | null;
             /**
              * Create Time
@@ -20621,7 +21199,10 @@ export interface components {
              */
             content: string;
         };
-        /** ParsedColumn */
+        /**
+         * ParsedColumn
+         * @description Serializable form of a recognized workbook column.
+         */
         ParsedColumn: {
             /** Title */
             title: string;
@@ -20705,6 +21286,79 @@ export interface components {
              * @enum {string}
              */
             workbook_type: "datasets" | "collection" | "collections";
+        };
+        /** ParsedTool */
+        ParsedTool: {
+            /** Citations */
+            citations: components["schemas"]["Citation"][];
+            /** Containers */
+            containers?: components["schemas"]["Container"][];
+            /** Description */
+            description: string | null;
+            /** Edam Operations */
+            edam_operations: string[];
+            /** Edam Topics */
+            edam_topics: string[];
+            help: components["schemas"]["HelpContent"] | null;
+            /** Id */
+            id: string;
+            /** Inputs */
+            inputs: (
+                | components["schemas"]["CwlIntegerParameterModel"]
+                | components["schemas"]["CwlFloatParameterModel"]
+                | components["schemas"]["CwlStringParameterModel"]
+                | components["schemas"]["CwlBooleanParameterModel"]
+                | components["schemas"]["CwlNullParameterModel"]
+                | components["schemas"]["CwlFileParameterModel"]
+                | components["schemas"]["CwlDirectoryParameterModel"]
+                | components["schemas"]["CwlUnionParameterModel"]
+                | components["schemas"]["TextParameterModel"]
+                | components["schemas"]["IntegerParameterModel"]
+                | components["schemas"]["FloatParameterModel"]
+                | components["schemas"]["BooleanParameterModel"]
+                | components["schemas"]["HiddenParameterModel"]
+                | components["schemas"]["SelectParameterModel"]
+                | components["schemas"]["DataParameterModel"]
+                | components["schemas"]["DataCollectionParameterModel"]
+                | components["schemas"]["DataColumnParameterModel"]
+                | components["schemas"]["DirectoryUriParameterModel"]
+                | components["schemas"]["RulesParameterModel"]
+                | components["schemas"]["DrillDownParameterModel"]
+                | components["schemas"]["GroupTagParameterModel"]
+                | components["schemas"]["BaseUrlParameterModel"]
+                | components["schemas"]["GenomeBuildParameterModel"]
+                | components["schemas"]["ColorParameterModel"]
+                | components["schemas"]["ConditionalParameterModel"]
+                | components["schemas"]["RepeatParameterModel"]
+                | components["schemas"]["SectionParameterModel"]
+            )[];
+            /** License */
+            license: string | null;
+            /** Name */
+            name: string;
+            /** Outputs */
+            outputs: (
+                | components["schemas"]["ToolOutputDataset"]
+                | components["schemas"]["ToolOutputCollection"]
+                | components["schemas"]["ToolOutputText"]
+                | components["schemas"]["ToolOutputInteger"]
+                | components["schemas"]["ToolOutputFloat"]
+                | components["schemas"]["ToolOutputBoolean"]
+            )[];
+            /** Profile */
+            profile: string | null;
+            /** Requirements */
+            requirements?: (
+                | components["schemas"]["PackageRequirement"]
+                | components["schemas"]["SetEnvironmentRequirement"]
+                | components["schemas"]["ResourceRequirement"]
+                | components["schemas"]["JavascriptRequirement"]
+            )[];
+            stdio?: components["schemas"]["Stdio"];
+            /** Version */
+            version: string | null;
+            /** Xrefs */
+            xrefs: components["schemas"]["XrefDict"][];
         };
         /** ParsedWorkbook */
         ParsedWorkbook: {
@@ -21079,6 +21733,8 @@ export interface components {
              * @default Person
              */
             class: string;
+            /** Description */
+            description?: string | null;
             /** Email */
             email?: string | null;
             /** Family Name */
@@ -21122,7 +21778,7 @@ export interface components {
          *     displayed in the notification preferences.
          * @enum {string}
          */
-        PersonalNotificationCategory: "message" | "new_shared_item" | "storage_operation";
+        PersonalNotificationCategory: "message" | "new_shared_item" | "storage_operation" | "tool_installation_request";
         /** PluginAspectStatus */
         PluginAspectStatus: {
             /** Message */
@@ -21788,6 +22444,48 @@ export interface components {
             | "genome_data"
             | "in_use_state";
         /**
+         * RequestedTool
+         * @description A single requested tool in a tool installation request.
+         *
+         *     This is the per-item model: each entry describes one tool. An installation
+         *     request submits an array of these, wrapped by
+         *     :class:`ToolInstallationRequestNotificationContent` which carries the
+         *     request-level metadata. All fields are sanitized on validation: control
+         *     characters are collapsed and whitespace-only values become ``None``.
+         */
+        RequestedTool: {
+            /**
+             * Description
+             * @description Short description of the tool and its scientific use case.
+             */
+            description?: string | null;
+            /**
+             * Tool name
+             * @description The human-readable name of the tool, if known.
+             */
+            name?: string | null;
+            /**
+             * Requested version
+             * @description The version of the tool being requested, if any.
+             */
+            requested_version?: string | null;
+            /**
+             * Scientific domain
+             * @description The scientific domain for the requested tool.
+             */
+            scientific_domain?: string | null;
+            /**
+             * Tool shed ID
+             * @description The fully qualified tool shed repository ID (e.g. ``toolshed.g2.bx.psu.edu/repos/devteam/bwa``), if known.
+             */
+            tool_shed_id?: string | null;
+            /**
+             * Tool URL
+             * @description Homepage or repository URL for the requested tool. Must be an http(s) URL.
+             */
+            tool_url?: string | null;
+        };
+        /**
          * Requirement
          * @description Available types of job sources (model classes) that produce dataset collections.
          * @enum {string}
@@ -21946,6 +22644,38 @@ export interface components {
              * @description The relative URL to access this item.
              */
             url: string;
+        };
+        /** RoleUpdatePayload */
+        RoleUpdatePayload: {
+            /** Description */
+            description?: string | null;
+            /**
+             * Group IDs
+             * @description Groups to associate with the role, replacing the current ones. Omit to leave them unchanged.
+             */
+            group_ids?: string[] | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * User IDs
+             * @description Users to associate with the role, replacing the current ones. Omit to leave them unchanged.
+             */
+            user_ids?: string[] | null;
+        };
+        /** RoleUserListResponse */
+        RoleUserListResponse: components["schemas"]["RoleUserResponse"][];
+        /** RoleUserResponse */
+        RoleUserResponse: {
+            /**
+             * Email
+             * @description Email of the user
+             */
+            email: string;
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
         };
         /** RootModel[dict[str, int]] */
         RootModel_dict_str__int__: {
@@ -22747,6 +23477,16 @@ export interface components {
              */
             version: string;
         };
+        /** SetEnvironmentRequirement */
+        SetEnvironmentRequirement: {
+            /** Environment */
+            environment: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "set_environment";
+        };
         /** SetSlugPayload */
         SetSlugPayload: {
             /**
@@ -23064,6 +23804,11 @@ export interface components {
              */
             id: string;
             /**
+             * Implicit Collection Jobs ID
+             * @description Encoded ID of the ImplicitCollectionJobs group this job belongs to, or null if the job was not mapped over a collection.
+             */
+            implicit_collection_jobs_id?: string | null;
+            /**
              * Inputs
              * @description Dictionary mapping all the tool inputs (by name) to the corresponding data references.
              * @default {}
@@ -23081,6 +23826,8 @@ export interface components {
                       | components["schemas"]["RegexJobMessage"]
                       | components["schemas"]["MaxDiscoveredFilesJobMessage"]
                       | components["schemas"]["OutputCollectionSecurityJobMessage"]
+                      | components["schemas"]["OutputDiscoveryJobMessage"]
+                      | components["schemas"]["StdioReadErrorJobMessage"]
                   )[]
                 | null;
             /**
@@ -23206,6 +23953,55 @@ export interface components {
             | "CANCELED"
             | "CANCELING"
             | "PREEMPTED";
+        /** Stdio */
+        Stdio: {
+            /** Exit Codes */
+            exit_codes?: components["schemas"]["StdioExitCode"][];
+            /** Regexes */
+            regexes?: components["schemas"]["StdioRegex"][];
+        };
+        /** StdioExitCode */
+        StdioExitCode: {
+            /** Desc */
+            desc?: string | null;
+            /** Error Level */
+            error_level: number;
+            /** Range End */
+            range_end: number | ("-inf" | "inf");
+            /** Range Start */
+            range_start: number | ("-inf" | "inf");
+        };
+        /** StdioReadErrorJobMessage */
+        StdioReadErrorJobMessage: {
+            /** Code Desc */
+            code_desc?: string | null;
+            /** Desc */
+            desc: string | null;
+            /** Errno */
+            errno: number | null;
+            /** Error Level */
+            error_level: number;
+            /** Stream */
+            stream: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "stdio_read_error";
+        };
+        /** StdioRegex */
+        StdioRegex: {
+            /** Desc */
+            desc?: string | null;
+            /** Error Level */
+            error_level: number;
+            /** Match */
+            match: string;
+            /** Stderr Match */
+            stderr_match: boolean;
+            /** Stdout Match */
+            stdout_match: boolean;
+        };
         /** StepReferenceByLabel */
         StepReferenceByLabel: {
             /**
@@ -23926,6 +24722,38 @@ export interface components {
          * @enum {string}
          */
         TaskState: "PENDING" | "STARTED" | "RETRY" | "FAILURE" | "SUCCESS";
+        /**
+         * TemplateFormDataRequest
+         * @description Values available while rendering a post-authorization template form.
+         */
+        TemplateFormDataRequest: {
+            /** Uuid */
+            uuid: string;
+            /** Variables */
+            variables?: {
+                [key: string]: string | boolean | number;
+            };
+        };
+        /** TemplateFormDataResponse */
+        TemplateFormDataResponse: {
+            /** Dynamic Options */
+            dynamic_options?: {
+                [key: string]: [string, string][];
+            };
+            /** Messages */
+            messages?: components["schemas"]["TemplateFormMessage"][];
+        };
+        /** TemplateFormMessage */
+        TemplateFormMessage: {
+            /** Content */
+            content: string;
+            /**
+             * Variant
+             * @default info
+             * @enum {string}
+             */
+            variant: "primary" | "secondary" | "success" | "danger" | "warning" | "info" | "light" | "dark";
+        };
         /** TemplateSecret */
         TemplateSecret: {
             /** Help */
@@ -23995,6 +24823,19 @@ export interface components {
                   )[]
                 | null;
         };
+        /**
+         * TemplateVariableOptionsProvider
+         * @description A server-side source for select options and its form dependencies.
+         */
+        TemplateVariableOptionsProvider: {
+            /**
+             * Depends On
+             * @default []
+             */
+            depends_on: string[];
+            /** Kind */
+            kind: string;
+        };
         /** TemplateVariablePathComponent */
         TemplateVariablePathComponent: {
             /** Default */
@@ -24022,6 +24863,44 @@ export interface components {
                       | components["schemas"]["LengthParameterValidatorModel"]
                   )[]
                 | null;
+        };
+        /** TemplateVariableSelect */
+        TemplateVariableSelect: {
+            /** Default */
+            default?: string | null;
+            /** Help */
+            help?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Multiline */
+            multiline?: boolean | null;
+            /** Name */
+            name: string;
+            /** Optional */
+            optional?: boolean | null;
+            /** Options */
+            options?: components["schemas"]["TemplateVariableSelectOption"][] | null;
+            options_provider?: components["schemas"]["TemplateVariableOptionsProvider"] | null;
+            /**
+             * Type
+             * @constant
+             */
+            type: "select";
+            /** Validators */
+            validators?:
+                | (
+                      | components["schemas"]["RegexParameterValidatorModel"]
+                      | components["schemas"]["InRangeParameterValidatorModel"]
+                      | components["schemas"]["LengthParameterValidatorModel"]
+                  )[]
+                | null;
+        };
+        /** TemplateVariableSelectOption */
+        TemplateVariableSelectOption: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
         };
         /** TemplateVariableString */
         TemplateVariableString: {
@@ -24180,6 +25059,11 @@ export interface components {
              * @description Applies only if `compare` is `diff`, `re_match` or `re_match_multiline`. Sorts the lines of the history data set before comparison; for `diff` and `re_match` the local file is also sorted. Useful for non-deterministic output.
              */
             sort?: boolean | null;
+            /**
+             * Visible
+             * @description If specified, this value is checked against whether the corresponding output is shown in the history. Use to test outputs a tool or workflow is expected to hide, for instance via a `HideDatasetAction` post job action.
+             */
+            visible?: boolean | null;
         };
         /** TestCollectionDatasetElementAssertions */
         "TestCollectionDatasetElementAssertions-Output": {
@@ -24258,6 +25142,11 @@ export interface components {
              * @description Applies only if `compare` is `diff`, `re_match` or `re_match_multiline`. Sorts the lines of the history data set before comparison; for `diff` and `re_match` the local file is also sorted. Useful for non-deterministic output.
              */
             sort?: boolean | null;
+            /**
+             * Visible
+             * @description If specified, this value is checked against whether the corresponding output is shown in the history. Use to test outputs a tool or workflow is expected to hide, for instance via a `HideDatasetAction` post job action.
+             */
+            visible?: boolean | null;
         };
         /** TestCollectionOutputAssertions */
         "TestCollectionOutputAssertions-Input": {
@@ -24388,6 +25277,11 @@ export interface components {
              * @description Applies only if `compare` is `diff`, `re_match` or `re_match_multiline`. Sorts the lines of the history data set before comparison; for `diff` and `re_match` the local file is also sorted. Useful for non-deterministic output.
              */
             sort?: boolean | null;
+            /**
+             * Visible
+             * @description If specified, this value is checked against whether the corresponding output is shown in the history. Use to test outputs a tool or workflow is expected to hide, for instance via a `HideDatasetAction` post job action.
+             */
+            visible?: boolean | null;
         };
         /** TestDataOutputAssertions */
         "TestDataOutputAssertions-Output": {
@@ -24466,6 +25360,11 @@ export interface components {
              * @description Applies only if `compare` is `diff`, `re_match` or `re_match_multiline`. Sorts the lines of the history data set before comparison; for `diff` and `re_match` the local file is also sorted. Useful for non-deterministic output.
              */
             sort?: boolean | null;
+            /**
+             * Visible
+             * @description If specified, this value is checked against whether the corresponding output is shown in the history. Use to test outputs a tool or workflow is expected to hide, for instance via a `HideDatasetAction` post job action.
+             */
+            visible?: boolean | null;
         };
         /** TestUpdateInstancePayload */
         TestUpdateInstancePayload: {
@@ -24653,6 +25552,69 @@ export interface components {
              */
             values: string;
         };
+        /**
+         * ToolInstallationRequestCreateContent
+         * @description A tool installation request as a user submits it.
+         *
+         *     The requested ``tools`` plus request-level context: the workflow that needs
+         *     them and any remarks for the admins.
+         */
+        ToolInstallationRequestCreateContent: {
+            /**
+             * Additional remarks
+             * @description Any additional information or context for the request.
+             */
+            additional_remarks?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            category: "tool_installation_request";
+            /**
+             * Requested tools
+             * @description The tools being requested. Each entry describes a single tool.
+             */
+            tools: components["schemas"]["RequestedTool"][];
+            /**
+             * Workflow ID
+             * @description Encoded ID of the workflow requiring these tools, if applicable.
+             */
+            workflow_id?: string | null;
+        };
+        /**
+         * ToolInstallationRequestNotificationContent
+         * @description A tool installation request as delivered to its recipients.
+         *
+         *     Adds ``requester_email``, taken from the authenticated submitter, so the
+         *     admin's notification card can name and contact the requester.
+         */
+        ToolInstallationRequestNotificationContent: {
+            /**
+             * Additional remarks
+             * @description Any additional information or context for the request.
+             */
+            additional_remarks?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            category: "tool_installation_request";
+            /**
+             * Requester email
+             * @description Email address of the user who made the request.
+             */
+            requester_email?: string | null;
+            /**
+             * Requested tools
+             * @description The tools being requested. Each entry describes a single tool.
+             */
+            tools: components["schemas"]["RequestedTool"][];
+            /**
+             * Workflow ID
+             * @description Encoded ID of the workflow requiring these tools, if applicable.
+             */
+            workflow_id?: string | null;
+        };
         /** ToolLandingRequest */
         ToolLandingRequest: {
             /** Origin */
@@ -24672,6 +25634,222 @@ export interface components {
              * @description Universal unique identifier for this dataset.
              */
             uuid: string;
+        };
+        /** ToolOutputBoolean */
+        ToolOutputBoolean: {
+            /**
+             * Hidden
+             * @description Hide the output in the history. The dataset is still created and usable by other tools and workflows.
+             */
+            hidden: boolean;
+            /**
+             * Label
+             * @description Name shown for the produced dataset or collection in the history.
+             */
+            label?: string | null;
+            /**
+             * Name
+             * @description Identifier used to connect this output in workflows and address it in tool tests.
+             */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "boolean";
+        };
+        /** ToolOutputCollection */
+        ToolOutputCollection: {
+            /**
+             * Collection Type
+             * @description Fixed structure Galaxy creates for this output, such as `list`, `paired`, or a nested type such as `list:paired`.
+             */
+            collection_type?: string | null;
+            /** Collection Type From Rules */
+            collection_type_from_rules?: string | null;
+            /**
+             * Collection Type Source
+             * @description Declared data-collection input whose runtime structure determines this output's collection type.
+             */
+            collection_type_source?: string | null;
+            /**
+             * Discover Datasets
+             * @description Rules used to discover and populate collection elements from produced files.
+             */
+            discover_datasets?:
+                | (
+                      | components["schemas"]["FilePatternDatasetCollectionDescription"]
+                      | components["schemas"]["ToolProvidedMetadataDatasetCollection"]
+                  )[]
+                | null;
+            /**
+             * Format
+             * @description Default datatype extension assigned to collection elements.
+             */
+            format?: string | null;
+            /**
+             * Format Source
+             * @description Input whose datatype supplies the default format for collection elements.
+             */
+            format_source?: string | null;
+            /**
+             * Hidden
+             * @description Hide the output in the history. The dataset is still created and usable by other tools and workflows.
+             */
+            hidden: boolean;
+            /**
+             * Label
+             * @description Name shown for the produced dataset or collection in the history.
+             */
+            label?: string | null;
+            /**
+             * Metadata Source
+             * @description Dataset input whose metadata supplies defaults for collection elements.
+             */
+            metadata_source?: string | null;
+            /**
+             * Name
+             * @description Identifier used to connect this output in workflows and address it in tool tests.
+             */
+            name: string;
+            /**
+             * Structured Like
+             * @description Declared input whose element count, identifiers, and nesting this output mirrors. Use this when each produced element corresponds to an input element.
+             */
+            structured_like?: string | null;
+            /**
+             * @description Creates one history dataset collection populated from files produced by the command. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "collection";
+        };
+        /** ToolOutputDataset */
+        ToolOutputDataset: {
+            /**
+             * Discover Datasets
+             * @description Rules for discovering additional datasets produced by the command.
+             */
+            discover_datasets?:
+                | (
+                      | components["schemas"]["FilePatternDatasetCollectionDescription"]
+                      | components["schemas"]["ToolProvidedMetadataDatasetCollection"]
+                  )[]
+                | null;
+            /**
+             * Format
+             * @description Galaxy datatype extension assigned when the command always produces a fixed representation. Use `format_source` instead when the datatype depends on an input.
+             */
+            format: string;
+            /**
+             * Format Source
+             * @description Data or collection input whose datatype extension this output inherits. Use this when the command preserves the input representation, such as filtering reads without changing their format.
+             */
+            format_source?: string | null;
+            /**
+             * from_work_dir
+             * @description Relative path, inside the job working directory, that the command writes for this output. Galaxy claims that file after the command finishes.
+             */
+            from_work_dir?: string | null;
+            /**
+             * Hidden
+             * @description Hide the output in the history. The dataset is still created and usable by other tools and workflows.
+             */
+            hidden: boolean;
+            /**
+             * Label
+             * @description Name shown for the produced dataset or collection in the history.
+             */
+            label?: string | null;
+            /**
+             * Metadata Source
+             * @description Data input whose datatype-specific metadata this output copies as defaults. Use this when the command preserves metadata Galaxy cannot infer from the output, such as interval column assignments.
+             */
+            metadata_source?: string | null;
+            /**
+             * Name
+             * @description Identifier used to connect this output in workflows and address it in tool tests.
+             */
+            name: string;
+            /**
+             * Precreate Directory
+             * @description Set true when `from_work_dir` names a produced directory for a composite datatype. Galaxy copies the directory contents into the output dataset's extra-files area.
+             * @default false
+             */
+            precreate_directory: boolean | null;
+            /**
+             * @description Creates one history dataset from a file produced by the command. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "data";
+        };
+        /** ToolOutputFloat */
+        ToolOutputFloat: {
+            /**
+             * Hidden
+             * @description Hide the output in the history. The dataset is still created and usable by other tools and workflows.
+             */
+            hidden: boolean;
+            /**
+             * Label
+             * @description Name shown for the produced dataset or collection in the history.
+             */
+            label?: string | null;
+            /**
+             * Name
+             * @description Identifier used to connect this output in workflows and address it in tool tests.
+             */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "float";
+        };
+        /** ToolOutputInteger */
+        ToolOutputInteger: {
+            /**
+             * Hidden
+             * @description Hide the output in the history. The dataset is still created and usable by other tools and workflows.
+             */
+            hidden: boolean;
+            /**
+             * Label
+             * @description Name shown for the produced dataset or collection in the history.
+             */
+            label?: string | null;
+            /**
+             * Name
+             * @description Identifier used to connect this output in workflows and address it in tool tests.
+             */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "integer";
+        };
+        /** ToolOutputText */
+        ToolOutputText: {
+            /**
+             * Hidden
+             * @description Hide the output in the history. The dataset is still created and usable by other tools and workflows.
+             */
+            hidden: boolean;
+            /**
+             * Label
+             * @description Name shown for the produced dataset or collection in the history.
+             */
+            label?: string | null;
+            /**
+             * Name
+             * @description Identifier used to connect this output in workflows and address it in tool tests.
+             */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
         };
         /** ToolProvidedMetadataDatasetCollection */
         ToolProvidedMetadataDatasetCollection: {
@@ -24759,7 +25937,7 @@ export interface components {
             request: {
                 [key: string]: unknown;
             };
-            state: components["schemas"]["ToolRequestState"];
+            state?: components["schemas"]["ToolRequestState"] | null;
             state_message?: components["schemas"]["ToolRequestStateMessage"] | null;
         };
         /** ToolRequestImplicitCollectionReference */
@@ -24802,7 +25980,7 @@ export interface components {
             request: {
                 [key: string]: unknown;
             };
-            state: components["schemas"]["ToolRequestState"];
+            state?: components["schemas"]["ToolRequestState"] | null;
             state_message?: components["schemas"]["ToolRequestStateMessage"] | null;
         };
         /**
@@ -25193,6 +26371,13 @@ export interface components {
              */
             deleted?: boolean | null;
             /**
+             * Metadata
+             * @description A dictionary of metadata key/value pairs to update for this dataset. Readonly and unknown metadata keys are silently ignored.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Name
              * @description The new name of the item.
              */
@@ -25461,6 +26646,13 @@ export interface components {
          *             "push": true
          *           },
          *           "enabled": true
+         *         },
+         *         "tool_installation_request": {
+         *           "channels": {
+         *             "email": true,
+         *             "push": true
+         *           },
+         *           "enabled": true
          *         }
          *       }
          *     }
@@ -25671,6 +26863,8 @@ export interface components {
             description?: string | null;
             /** Device */
             device?: string | null;
+            /** Enable Direct Download */
+            enable_direct_download?: boolean | null;
             /** Hidden */
             hidden: boolean;
             /** Name */
@@ -25694,7 +26888,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "aws_s3" | "azure_blob" | "boto3" | "disk" | "generic_s3" | "onedata" | "rucio" | "irods";
+            type: "aws_s3" | "azure_blob" | "boto3" | "cloud" | "disk" | "generic_s3" | "onedata" | "rucio" | "irods";
             /**
              * Uuid
              * Format: uuid4
@@ -25747,6 +26941,35 @@ export interface components {
              */
             id: string;
         };
+        /**
+         * UserExtraPreferences
+         * @description A user's values for the extra preferences, by section and input name.
+         *
+         *     Inputs without a stored value are null. `password` and `secret` inputs report
+         *     whether a value is stored instead of the value.
+         */
+        UserExtraPreferences: {
+            [key: string]: {
+                [key: string]:
+                    | string
+                    | number
+                    | boolean
+                    | (string | number | boolean)[]
+                    | components["schemas"]["ExtraPreferenceSecretState"]
+                    | null;
+            };
+        };
+        /**
+         * UserExtraPreferencesUpdatePayload
+         * @description Values to change, by section and input name.
+         *
+         *     Inputs that are left out keep their stored value; null clears one.
+         */
+        UserExtraPreferencesUpdatePayload: {
+            [key: string]: {
+                [key: string]: string | number | boolean | (string | number | boolean)[] | null;
+            };
+        };
         /** UserFileSourceModel */
         UserFileSourceModel: {
             /** Active */
@@ -25786,10 +27009,19 @@ export interface components {
                 | "zenodo"
                 | "rspace"
                 | "dataverse"
+                | "cbioportal"
                 | "huggingface"
+                | "github"
                 | "iiif"
+                | "ipfs"
+                | "mavedb"
                 | "omero"
-                | "ssh";
+                | "ssh"
+                | "openbis"
+                | "ckan"
+                | "commoncrawl"
+                | "gitlab"
+                | "arc";
             /** Uri Root */
             uri_root: string;
             /**
@@ -25801,6 +27033,14 @@ export interface components {
             variables: {
                 [key: string]: string | boolean | number;
             } | null;
+        };
+        /** UserGroupsUpdatePayload */
+        UserGroupsUpdatePayload: {
+            /**
+             * Group IDs
+             * @description Groups the user is a member of, replacing the current ones.
+             */
+            group_ids: string[];
         };
         /**
          * UserModel
@@ -25872,6 +27112,13 @@ export interface components {
          *             "push": true
          *           },
          *           "enabled": true
+         *         },
+         *         "tool_installation_request": {
+         *           "channels": {
+         *             "email": true,
+         *             "push": true
+         *           },
+         *           "enabled": true
          *         }
          *       }
          *     }
@@ -25902,7 +27149,8 @@ export interface components {
             content:
                 | components["schemas"]["MessageNotificationContent"]
                 | components["schemas"]["NewSharedItemNotificationContent"]
-                | components["schemas"]["StorageOperationNotificationContent"];
+                | components["schemas"]["StorageOperationNotificationContent"]
+                | components["schemas"]["ToolInstallationRequestNotificationContent"];
             /**
              * Create time
              * Format: date-time
@@ -25992,6 +27240,14 @@ export interface components {
             /** Total Disk Usage */
             total_disk_usage: number;
         };
+        /** UserPasswordResetPayload */
+        UserPasswordResetPayload: {
+            /**
+             * Password
+             * @description The new password of the user.
+             */
+            password: string;
+        };
         /** UserQuota */
         UserQuota: {
             /**
@@ -26018,6 +27274,14 @@ export interface components {
             quota_source_label?: string | null;
             /** Total Disk Usage */
             total_disk_usage: number;
+        };
+        /** UserRolesUpdatePayload */
+        UserRolesUpdatePayload: {
+            /**
+             * Role IDs
+             * @description Roles to associate with the user, replacing the current ones. The user's private role is always kept.
+             */
+            role_ids: string[];
         };
         /** UserServiceCredentialsListResponse */
         UserServiceCredentialsListResponse: components["schemas"]["UserServiceCredentialsResponse"][];
@@ -26231,7 +27495,7 @@ export interface components {
             profile?: number | null;
             /**
              * requirements
-             * @description JavaScript helpers and compute resource requests needed to execute this tool.
+             * @description JavaScript helpers and compute resource requests needed to execute this tool. Set the container image with the top-level container field.
              * @default []
              */
             requirements:
@@ -26373,7 +27637,7 @@ export interface components {
             profile?: number | null;
             /**
              * requirements
-             * @description JavaScript helpers and compute resource requests needed to execute this tool.
+             * @description JavaScript helpers and compute resource requests needed to execute this tool. Set the container image with the top-level container field.
              * @default []
              */
             requirements:
@@ -26406,9 +27670,19 @@ export interface components {
         UserUpdatePayload: {
             /**
              * Active
-             * @description User is active
+             * @description Whether the account is active. Only an administrator can change this.
              */
-            active?: boolean | null;
+            active?: boolean;
+            /**
+             * Display name
+             * @description Free-form name shown in place of the username. Not unique, and never used in URLs, slugs or as an identifier.
+             */
+            display_name?: string | null;
+            /**
+             * Email
+             * @description New email address. When `user_activation_on` is set, changing the email deactivates the account and sends an activation link to the new address.
+             */
+            email?: string;
             /**
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
@@ -26416,9 +27690,9 @@ export interface components {
             preferred_object_store_id?: string | null;
             /**
              * Username
-             * @description The name of the user.
+             * @description The name of the user. A new name may contain only lower-case letters, numbers, '.', '_' and '-'; the current name is accepted as stored.
              */
-            username?: string | null;
+            username?: string;
         };
         /** VariableResponse */
         VariableResponse: {
@@ -26862,6 +28136,11 @@ export interface components {
              */
             job_ids?: string[];
             /**
+             * Output Labels
+             * @description Concrete tool outputs to expose as workflow outputs, with labels.
+             */
+            output_labels?: components["schemas"]["OutputLabelHint"][];
+            /**
              * Workflow Name
              * @description The name for the extracted workflow.
              */
@@ -26934,6 +28213,12 @@ export interface components {
              */
             deleted: boolean;
             /**
+             * Exposed
+             * @description Whether this output should be preselected for exposure as a workflow output.
+             * @default false
+             */
+            exposed: boolean;
+            /**
              * HID
              * @description The history item ID (position in history).
              */
@@ -26955,10 +28240,25 @@ export interface components {
              */
             name: string;
             /**
+             * Output Name
+             * @description Workflow/tool output port name for this concrete output, when known.
+             */
+            output_name?: string | null;
+            /**
              * State
              * @description The state of the dataset or collection.
              */
             state: components["schemas"]["DatasetState"];
+            /**
+             * Suggested Name
+             * @description Suggested workflow output label for this concrete output.
+             */
+            suggested_name?: string | null;
+            /**
+             * Suggested Name Source
+             * @description Source used to derive the suggested workflow output label.
+             */
+            suggested_name_source?: ("renamed" | "rendered_label" | "bare_label" | "port_name") | null;
         };
         /** WorkflowExtractionPayload */
         WorkflowExtractionPayload: {
@@ -32134,6 +33434,51 @@ export interface operations {
             };
         };
     };
+    history_summary_api_ai_agents_history_summary_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_history_summary_api_ai_agents_history_summary_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     query_agent_api_ai_agents_query_post: {
         parameters: {
             query?: never;
@@ -32843,6 +34188,47 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    extra_preferences_api_configuration_extra_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sections and inputs users can set values for */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtraPreferenceSectionDefinition"][];
                 };
             };
             /** @description Request Error */
@@ -34661,6 +36047,105 @@ export interface operations {
             };
         };
     };
+    download_api_datasets__history_content_id__download_get: {
+        parameters: {
+            query?: {
+                /** @description The file extension when downloading the display data. Use the value `data` to let the server infer it from the data type. */
+                to_ext?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the History Dataset. */
+                history_content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redirect to a URL serving the dataset directly from the backing object store. Only returned for whole-file downloads when the dataset's object store has `enable_direct_download` set. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    download_api_datasets__history_content_id__download_head: {
+        parameters: {
+            query?: {
+                /** @description The file extension when downloading the display data. Use the value `data` to let the server infer it from the data type. */
+                to_ext?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the History Dataset. */
+                history_content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     datasets__get_metadata_file: {
         parameters: {
             query: {
@@ -36131,6 +37616,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FileSourceTemplateSummaries"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    file_sources__template_form_data: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The template ID of the target file source template. */
+                template_id: string;
+                /** @description The template version of the target file source template. */
+                template_version: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateFormDataRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateFormDataResponse"];
                 };
             };
             /** @description Request Error */
@@ -39807,6 +41342,107 @@ export interface operations {
             };
         };
     };
+    history_contents_download_api_histories__history_id__contents__history_content_id__download_get: {
+        parameters: {
+            query?: {
+                /** @description The file extension when downloading the display data. Use the value `data` to let the server infer it from the data type. */
+                to_ext?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the History Dataset. */
+                history_content_id: string;
+                history_id: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redirect to a URL serving the dataset directly from the backing object store. Only returned for whole-file downloads when the dataset's object store has `enable_direct_download` set. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    history_contents_download_api_histories__history_id__contents__history_content_id__download_head: {
+        parameters: {
+            query?: {
+                /** @description The file extension when downloading the display data. Use the value `data` to let the server infer it from the data type. */
+                to_ext?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the History Dataset. */
+                history_content_id: string;
+                history_id: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     extra_files_history_api_histories__history_id__contents__history_content_id__extra_files_get: {
         parameters: {
             query?: never;
@@ -41404,7 +43040,7 @@ export interface operations {
     graph_api_histories__history_id__graph_get: {
         parameters: {
             query?: {
-                /** @description Maximum number of nodes. Applied at history scope. */
+                /** @description Maximum number of nodes. Applied at history scope. Capped at MAX_LIMIT (1000) by the manager. */
                 limit?: number;
                 /** @description Include deleted datasets and collections. */
                 include_deleted?: boolean;
@@ -47446,6 +49082,8 @@ export interface operations {
                 limit?: number | null;
                 /** @description Number of roles to skip. */
                 offset?: number | null;
+                /** @description Leave out the private role of each user. */
+                exclude_private?: boolean;
             };
             header?: {
                 /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
@@ -47574,6 +49212,54 @@ export interface operations {
             };
         };
     };
+    update_api_roles__id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleModelResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     delete_api_roles__id__delete: {
         parameters: {
             query?: never;
@@ -47596,6 +49282,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoleModelResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    groups_api_roles__id__groups_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupModelListResponse"];
                 };
             };
             /** @description Request Error */
@@ -47684,6 +49414,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoleModelResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    users_api_roles__id__users_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the role. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleUserListResponse"];
                 };
             };
             /** @description Request Error */
@@ -49343,6 +51117,52 @@ export interface operations {
             };
         };
     };
+    tools__interop: {
+        parameters: {
+            query?: {
+                tool_version?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The tool ID for the lineage stored in Galaxy's toolbox. */
+                tool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParsedTool"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     tools__parameter_landing_request_schema: {
         parameters: {
             query?: {
@@ -49447,6 +51267,190 @@ export interface operations {
             path: {
                 /** @description The tool ID for the lineage stored in Galaxy's toolbox. */
                 tool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    tools__versioned_interop: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The tool ID for the lineage stored in Galaxy's toolbox. */
+                tool_id: string;
+                /** @description The full version string defined on the Galaxy tool wrapper. */
+                tool_version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParsedTool"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    tools__versioned_parameter_landing_request_schema: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The tool ID for the lineage stored in Galaxy's toolbox. */
+                tool_id: string;
+                /** @description The full version string defined on the Galaxy tool wrapper. */
+                tool_version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    tools__versioned_parameter_request_schema: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The tool ID for the lineage stored in Galaxy's toolbox. */
+                tool_id: string;
+                /** @description The full version string defined on the Galaxy tool wrapper. */
+                tool_version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    tools__versioned_parameter_test_case_xml_schema: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The tool ID for the lineage stored in Galaxy's toolbox. */
+                tool_id: string;
+                /** @description The full version string defined on the Galaxy tool wrapper. */
+                tool_version: string;
             };
             cookie?: never;
         };
@@ -51098,6 +53102,98 @@ export interface operations {
             };
         };
     };
+    get_extra_preferences_api_users__user_id__extra_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserExtraPreferences"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    update_extra_preferences_api_users__user_id__extra_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserExtraPreferencesUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserExtraPreferences"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     set_favorite_order_api_users__user_id__favorites_order_put: {
         parameters: {
             query?: never;
@@ -51244,6 +53340,98 @@ export interface operations {
             };
         };
     };
+    get_user_groups_api_users__user_id__groups_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupModelListResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    set_user_groups_api_users__user_id__groups_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserGroupsUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupModelListResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     get_user_objectstore_usage_api_users__user_id__objectstore_usage_get: {
         parameters: {
             query?: never;
@@ -51267,6 +53455,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserObjectstoreUsage"][];
                 };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    reset_user_password_api_users__user_id__password_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPasswordResetPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Request Error */
             "4XX": {
@@ -51353,6 +53587,54 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleListResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    set_user_roles_api_users__user_id__roles_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRolesUpdatePayload"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -52415,6 +54697,89 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    curated_api_workflows_curated_get: {
+        parameters: {
+            query?: {
+                /**
+                 * @description A mix of free text and GitHub-style tags used to filter the index operation.
+                 *
+                 *     ## Query Structure
+                 *
+                 *     GitHub-style filter tags (not be confused with Galaxy tags) are tags of the form
+                 *     `<tag_name>:<text_no_spaces>` or `<tag_name>:'<text with potential spaces>'`. The tag name
+                 *     *generally* (but not exclusively) corresponds to the name of an attribute on the model
+                 *     being indexed (i.e. a column in the database).
+                 *
+                 *     If the tag is quoted, the attribute will be filtered exactly. If the tag is unquoted,
+                 *     generally a partial match will be used to filter the query (i.e. in terms of the implementation
+                 *     this means the database operation `ILIKE` will typically be used).
+                 *
+                 *     Once the tagged filters are extracted from the search query, the remaining text is just
+                 *     used to search various documented attributes of the object.
+                 *
+                 *     ## GitHub-style Tags Available
+                 *
+                 *     `name`
+                 *     : The curated workflow's name. (The tag `n` can be used a short hand alias for this tag to filter on this attribute.)
+                 *
+                 *     `tag`
+                 *     : A tag on the curated workflow. (The tag `t` can be used a short hand alias for this tag to filter on this attribute.)
+                 *
+                 *     `collection`
+                 *     : An IWC collection the curated workflow belongs to. (The tag `c` can be used a short hand alias for this tag to filter on this attribute.)
+                 *
+                 *     ## Free Text
+                 *
+                 *     Free text search terms will be searched against the following attributes of the
+                 *     Curated Workflows: `name`, `description`, `tag`, `collection`.
+                 */
+                search?: string | null;
+                /** @description Sort curated workflows by this attribute. Without it, most recently updated first -- and in IWC catalog mode, workflows whose tools are all available here come before the rest. */
+                sort_by?: ("create_time" | "update_time" | "name") | null;
+                /** @description Sort in descending order? */
+                sort_desc?: boolean | null;
+                /** @description Maximum number of curated workflows to return. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Curated workflows plus the source they were drawn from. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CuratedWorkflowsIndexResponse"];
                 };
             };
             /** @description Request Error */

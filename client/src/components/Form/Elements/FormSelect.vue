@@ -11,6 +11,7 @@ import { uid } from "@/utils/utils";
 
 import { type DataOption, isDataOption, itemUniqueKey } from "./FormData/types";
 
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
 
 const { ariaExpanded, onOpen, onClose } = useMultiselect();
@@ -58,7 +59,10 @@ const emit = defineEmits<{
 }>();
 
 const filter = ref("");
-const filteredOptions = useFilterObjectArray(() => props.options, filter, ["label", ["value", "tags"]]);
+const { filtered: filteredOptions, pending: filterPending } = useFilterObjectArray(() => props.options, filter, [
+    "label",
+    ["value", "tags"],
+]);
 
 // Debounced upward emit so consumers (e.g. ``FormData`` paginating against the
 // backend) can refetch on typing without firing on every keystroke. The local
@@ -267,7 +271,8 @@ function isSelected(item: SelectValue): boolean {
             v-if="hasOptions"
             :id="id"
             v-model="currentValue"
-            :allow-empty="optional"
+            :data-filter-pending="filterPending ? 'true' : undefined"
+            :allow-empty="optional || multiple"
             :aria-expanded="ariaExpanded"
             :close-on-select="!multiple"
             :disabled="disabled"
@@ -284,7 +289,9 @@ function isSelected(item: SelectValue): boolean {
             @open="onOpen"
             @close="onClose">
             <template v-slot:option="{ option }">
+                <!-- Replace recycled option content when its identity changes. -->
                 <div
+                    :key="`${option.label}:${String(option.value)}`"
                     class="d-flex align-items-center justify-content-between"
                     :data-option-value="optionIdentifier(option)">
                     <div>
@@ -304,7 +311,7 @@ function isSelected(item: SelectValue): boolean {
             </template>
         </Multiselect>
         <slot v-else name="no-options">
-            <b-alert v-localize class="w-100" variant="warning" show> No options available. </b-alert>
+            <GAlert v-localize class="w-100" variant="warning" show> No options available. </GAlert>
         </slot>
     </div>
 </template>

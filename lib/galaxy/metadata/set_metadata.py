@@ -19,9 +19,6 @@ import sys
 import traceback
 from functools import partial
 from pathlib import Path
-from typing import (
-    Optional,
-)
 
 try:
     from pulsar.client.staging import COMMAND_VERSION_FILENAME
@@ -33,6 +30,7 @@ import galaxy.datatypes.registry
 import galaxy.model.mapping
 from galaxy.datatypes import sniff
 from galaxy.datatypes.data import validate
+from galaxy.exceptions import MessageException
 from galaxy.job_execution.compute_environment import dataset_path_to_extra_path
 from galaxy.job_execution.output_collect import (
     collect_dynamic_outputs,
@@ -70,6 +68,7 @@ from galaxy.tool_util.output_checker import (
     check_output,
     DETECTED_JOB_STATE,
     MaxDiscoveredFilesJobMessage,
+    output_discovery_job_message,
     OutputCollectionSecurityJobMessage,
 )
 from galaxy.tool_util.parser.stdio import (
@@ -190,8 +189,8 @@ def get_object_store(tool_job_working_directory, object_store=None):
 
 def set_metadata_portable(
     tool_job_working_directory=None,
-    object_store: Optional[ObjectStore] = None,
-    extended_metadata_collection: Optional[bool] = None,
+    object_store: ObjectStore | None = None,
+    extended_metadata_collection: bool | None = None,
 ):
     is_celery_task = tool_job_working_directory is not None
     tool_job_working_directory = Path(tool_job_working_directory or os.path.abspath(os.getcwd()))
@@ -328,7 +327,7 @@ def set_metadata_portable(
     assert isinstance(import_model_store.sa_session, SessionlessContext)
 
     tool_script_file = tool_job_working_directory / "tool_script.sh"
-    job: Optional[Job] = None
+    job: Job | None = None
     if export_store:
         job = next(iter(import_model_store.sa_session.objects[Job].values()))
 
@@ -398,6 +397,18 @@ def set_metadata_portable(
                     error_level=StdioErrorLevel.FATAL,
                 )
             job_messages.append(message)
+        except MessageException as e:
+            log.warning("Job failed during extended metadata output discovery: %s", e)
+            discovery_failed = True
+            final_job_state = Job.states.ERROR
+            job_messages.append(output_discovery_job_message(unicodify(e)))
+        except Exception:
+            log.exception("Unexpected failure during extended metadata output discovery")
+            discovery_failed = True
+            final_job_state = Job.states.ERROR
+            if job:
+                job.traceback = unicodify(traceback.format_exc(), strip_null=True)
+            job_messages.append(output_discovery_job_message())
 
         if job:
             job.set_streams(tool_stdout=tool_stdout, tool_stderr=tool_stderr, job_messages=job_messages)
@@ -552,8 +563,6 @@ def set_metadata_portable(
                     # Ensure white space between entries
                     dataset.info = f"{dataset.info.rstrip()}\n{context['stderr'].strip()}"
                 dataset.tool_version = version_string
-                if "uuid" in context:
-                    dataset.dataset.uuid = context["uuid"]
                 if not final_job_state == Job.states.ERROR:
                     line_count = context.get("line_count", None)
                     dataset.set_peek(line_count=line_count)
@@ -619,7 +628,7 @@ def validate_and_load_datatypes_config(datatypes_config):
 
 def load_job_metadata(
     job_metadata: StrPath,
-    provided_metadata_style: Optional[str],
+    provided_metadata_style: str | None,
     uses_tool_provided_metadata: bool,
     job_working_directory: StrPath,
 ) -> BaseToolProvidedMetadata:

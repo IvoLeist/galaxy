@@ -2,7 +2,7 @@
 import { faUndo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import type { ColDef, GetRowIdParams, IRowDragItem, NewValueParams } from "ag-grid-community";
-import { BAlert, BCol, BLink, BRow } from "bootstrap-vue";
+import { BCol, BLink, BRow } from "bootstrap-vue";
 import { getActivePinia } from "pinia";
 import { computed, nextTick, ref, watch } from "vue";
 
@@ -19,6 +19,11 @@ import {
     type SupportedPairedOrPairedBuilderCollectionTypes,
     useCollectionCreator,
 } from "./common/useCollectionCreator";
+import {
+    invalidElementMessage,
+    toastNoLongerAvailable,
+    toastRemovedFromCollection,
+} from "./common/useElementReconciliation";
 import { usePairingSummary } from "./common/usePairingSummary";
 import {
     type AutoPairingResult,
@@ -29,12 +34,12 @@ import {
 
 import AutoPairing from "./common/AutoPairing.vue";
 import PairedOrUnpairedListCreatorHelp from "./PairedOrUnpairedListCreatorHelp.vue";
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import GButton from "@/components/BaseComponents/GButton.vue";
 import CollectionCreator from "@/components/Collections/common/CollectionCreator.vue";
 
 type CollectionElementIdentifier = components["schemas"]["CollectionElementIdentifier"];
 type CollectionSourceType = components["schemas"]["CollectionSourceType"];
-const NOT_VALID_ELEMENT_MSG: string = localize("is not a valid element for this collection");
 
 const { confirm } = useConfirmDialog();
 
@@ -81,6 +86,7 @@ const emit = defineEmits<{
 
 const currentForwardFilter = ref(props.forwardFilter);
 const currentReverseFilter = ref(props.reverseFilter);
+const flatLists = computed(() => props.collectionType.indexOf("paired") == -1);
 const { currentSummary, summaryText, autoPair } = usePairingSummary<HistoryItemSummary>(props);
 
 const {
@@ -101,8 +107,6 @@ pairingTargetsStore.setShowElementExtension(showElementExtension);
 const style = computed(() => {
     return { width: "100%", height: "500px" };
 });
-
-const flatLists = computed(() => props.collectionType.indexOf("paired") == -1);
 
 const isNestedList = computed(() => {
     return props.collectionType.startsWith("list:list");
@@ -289,7 +293,8 @@ function syncPairingToRowData(summary: AutoPairingResult<HistoryItemSummary>, ro
             }
         }
     } else {
-        for (const unpaired of props.initialElements) {
+        // Reverse the order of flat list elements to match the history panel display (newest HID first)
+        for (const unpaired of [...props.initialElements].reverse()) {
             rowDataValue.push(unpairedRow(unpaired));
         }
     }
@@ -419,28 +424,14 @@ function addNewElementsToRowData(elements: HistoryItemSummary[]) {
     }
 }
 
-/** Matches the wording ListCollectionCreator/PairCollectionCreator use for the same situation. */
-function toastRemovedFromCollection(...items: HistoryItemSummary[]) {
-    const description = items.map((item) => `${item.hid}: ${item.name}`).join(", ");
-    const invalidMsg = `${description} ${localize("has been removed from the collection")}`;
-    Toast.error(invalidMsg, localize("Invalid element"));
-}
-
-/**
- * A lesser-severity notice for datasets that disappeared but were never actually headed into
- * the final collection to begin with (see the `strictPairs` cases below), so "removed from the
- * collection" would overstate what happened.
- */
-function toastNoLongerAvailable(item: HistoryItemSummary) {
-    const msg = `${item.hid}: ${item.name} ${localize("is no longer available and was removed from the pairing list")}`;
-    Toast.warning(msg, localize("Dataset unavailable"));
-}
-
 /**
  * Reconcile `rowData` with a changed `initialElements` without disturbing existing pairs:
  * add rows for newly-seen elements, drop rows for elements no longer present (splitting
  * a pair back to unpaired if only one side of it was removed), and leave everything
  * else (manual or auto pairs, identifiers, etc.) untouched.
+ *
+ * Unlike the sibling creators this reconciles on presence alone - it never asks
+ * `isElementInvalid` - so only the notifications are shared with them.
  */
 function reconcileWithInitialElements(newInitialElements: HistoryItemSummary[]) {
     const validIds = new Set(newInitialElements.map((el) => el.id));
@@ -500,7 +491,7 @@ function addUploadedFiles(files: HDASummary[]) {
     files.forEach((file) => {
         const problem = isElementInvalid(file);
         if (problem) {
-            const invalidMsg = `${file.hid}: ${file.name} ${problem} and ${NOT_VALID_ELEMENT_MSG}`;
+            const invalidMsg = invalidElementMessage(file, problem);
             Toast.error(invalidMsg, localize("Uploaded item invalid for pair"));
         } else {
             addedFiles.push(file);
@@ -955,17 +946,17 @@ export default {
                 <div>
                     <BRow v-if="!flatLists">
                         <BCol>
-                            <BAlert show variant="info" dismissible>
+                            <GAlert show variant="info" dismissible>
                                 {{ summaryText }}
                                 If this isn't correct,
                                 <BLink style="font-weight: bold" @click="goToAutoPairing">configure auto-pairing</BLink
                                 >.
-                            </BAlert>
+                            </GAlert>
                         </BCol>
                     </BRow>
                     <BRow v-if="unpairedProblemDatasetCount > 0">
                         <BCol>
-                            <BAlert show variant="warning" dismissible>
+                            <GAlert show variant="warning" dismissible>
                                 {{ unpairedProblemDatasetCount }} unmatched datasets, these should be either dismissed
                                 or paired off.
                                 <BLink
@@ -974,7 +965,7 @@ export default {
                                     @click="dismissUnmatchedDatasets"
                                     >Click here to discard all remaining unpaired datasets.</BLink
                                 >
-                            </BAlert>
+                            </GAlert>
                         </BCol>
                     </BRow>
                     <div class="d-flex justify-content-end mb-1">

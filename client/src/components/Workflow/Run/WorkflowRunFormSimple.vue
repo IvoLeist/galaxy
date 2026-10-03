@@ -2,7 +2,7 @@
 import { faReadme } from "@fortawesome/free-brands-svg-icons";
 import { faArrowRight, faCog, faSitemap } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BFormInput } from "bootstrap-vue";
+import { BFormInput } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeMount, ref, watch } from "vue";
 
@@ -35,6 +35,7 @@ import ExportOnCompleteWizard from "./ExportOnCompleteWizard.vue";
 import WorkflowHelpDisplay from "./WorkflowHelpDisplay.vue";
 import WorkflowRunGraph from "./WorkflowRunGraph.vue";
 import WorkflowStorageConfiguration from "./WorkflowStorageConfiguration.vue";
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import GButton from "@/components/BaseComponents/GButton.vue";
 import GButtonGroup from "@/components/BaseComponents/GButtonGroup.vue";
 import GCheckbox from "@/components/BaseComponents/GCheckbox.vue";
@@ -397,7 +398,7 @@ function onSearchChange({ name, src, query, limit }: { name: string; src: string
     fetchStepOptions(name, src, { offset: 0, limit: limit || DEFAULT_OPTIONS_PAGE_SIZE, search: query });
 }
 
-function onStorageUpdate(objectStoreId: string, intermediate: boolean) {
+function onStorageUpdate(objectStoreId: string | null, intermediate: boolean) {
     if (intermediate) {
         preferredIntermediateObjectStoreId.value = objectStoreId;
     } else {
@@ -560,12 +561,12 @@ onBeforeMount(() => {
         data-galaxy-file-drop-target>
         <div v-if="!showRightPanel" class="ui-form-header-underlay sticky-top" />
         <div v-if="isConfigLoaded" :class="{ 'sticky-top': !showRightPanel }">
-            <BAlert v-if="!canRunOnHistory" variant="warning" show>
+            <GAlert v-if="!canRunOnHistory" variant="warning" show>
                 <span v-localize>
                     The workflow cannot run because the current history is immutable. Please select a different history
                     or send the results to a new one using the run settings ⚙️
                 </span>
-            </BAlert>
+            </GAlert>
             <div class="mb-2">
                 <WorkflowNavigationTitle
                     :workflow-id="model.runData.workflow_id"
@@ -683,8 +684,8 @@ onBeforeMount(() => {
                         <div class="settings-row">
                             <WorkflowStorageConfiguration
                                 :split-object-store="splitObjectStore"
-                                :invocation-preferred-object-store-id="preferredObjectStoreId ?? undefined"
-                                :invocation-intermediate-preferred-object-store-id="preferredIntermediateObjectStoreId"
+                                :invocation-preferred-object-store-id="preferredObjectStoreId"
+                                :invocation-preferred-intermediate-object-store-id="preferredIntermediateObjectStoreId"
                                 @updated="onStorageUpdate" />
                         </div>
                     </template>

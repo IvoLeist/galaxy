@@ -7,7 +7,6 @@ import shutil
 from logging import getLogger
 from typing import (
     Any,
-    Optional,
     TYPE_CHECKING,
 )
 
@@ -80,14 +79,14 @@ class MetadataCollectionStrategy(metaclass=abc.ABCMeta):
         job_metadata=None,
         provided_metadata_style=None,
         compute_tmp_dir=None,
-        compute_version_path: Optional[str] = None,
+        compute_version_path: str | None = None,
         include_command=True,
         max_metadata_value_size=0,
         max_discovered_files=None,
         validate_outputs: bool = False,
         object_store_conf=None,
         tool=None,
-        job: Optional[galaxy.model.Job] = None,
+        job: galaxy.model.Job | None = None,
         link_data_only: bool = False,
         kwds=None,
     ):
@@ -162,14 +161,14 @@ class PortableDirectoryMetadataGenerator(MetadataCollectionStrategy):
         job_metadata=None,
         provided_metadata_style=None,
         compute_tmp_dir=None,
-        compute_version_path: Optional[str] = None,
+        compute_version_path: str | None = None,
         include_command=True,
         max_metadata_value_size=0,
         max_discovered_files=None,
         validate_outputs: bool = False,
         object_store_conf=None,
         tool=None,
-        job: Optional[galaxy.model.Job] = None,
+        job: galaxy.model.Job | None = None,
         link_data_only: bool = False,
         kwds=None,
     ):
@@ -204,7 +203,7 @@ class PortableDirectoryMetadataGenerator(MetadataCollectionStrategy):
             )
 
             outputs[name] = {
-                "filename_override": _get_filename_override(output_fnames, dataset.get_file_name()),
+                "filename_override": _get_filename_override(output_fnames, dataset.get_file_name(sync_cache=False)),
                 "validate": validate_outputs,
                 "object_store_store_by": dataset.dataset.store_by,
                 "id": dataset.id,

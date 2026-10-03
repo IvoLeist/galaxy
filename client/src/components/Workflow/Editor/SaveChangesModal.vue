@@ -54,6 +54,7 @@ const buttonTitles = {
 
 function closeModal() {
     emit("update:show-modal", false);
+    busy.value = false;
 }
 
 function dontSave() {

@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { faEllipsisV, faSort, faSortDown, faSortUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BDropdown, BDropdownItem, BFormCheckbox } from "bootstrap-vue";
+import { BFormCheckbox } from "bootstrap-vue";
 import { computed, ref } from "vue";
 
 import type { BootstrapSize } from "@/components/Common";
@@ -15,8 +15,12 @@ import type {
     TableAction,
     TableEmptyState,
     TableField,
+    TableItemClassMeta,
 } from "./GTable.types";
 
+import GAlert from "@/components/BaseComponents/GAlert.vue";
+import GDropdown from "@/components/BaseComponents/GDropdown.vue";
+import GDropdownItem from "@/components/BaseComponents/GDropdownItem.vue";
 import GOverlay from "@/components/BaseComponents/GOverlay.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
@@ -187,6 +191,14 @@ interface Props {
     perPage?: number;
 
     /**
+     * Item field to expose as each row's `data-pk` attribute, enabling row
+     * selection by key (e.g. in selenium selectors). When unset, no `data-pk`
+     * is rendered.
+     * @default ""
+     */
+    primaryKey?: string;
+
+    /**
      * Whether to show striped rows
      * @default true
      */
@@ -209,6 +221,13 @@ interface Props {
      * @default []
      */
     selectedItems?: number[];
+
+    /**
+     * Array of item indices whose selection is partial/mixed. Their row checkbox
+     * renders as indeterminate (e.g. a folder with only some children selected).
+     * @default []
+     */
+    indeterminateItems?: number[];
 
     /**
      * Whether to show the empty state message when no items are available
@@ -288,9 +307,11 @@ const props = withDefaults(defineProps<Props>(), {
     noSelectOnClick: false,
     overlayLoading: false,
     perPage: undefined,
+    primaryKey: "",
     selectable: false,
     selectCheckboxTitle: "Select for bulk actions",
     selectedItems: () => [],
+    indeterminateItems: () => [],
     showEmpty: false,
     showSelectAll: false,
     sortBy: "",
@@ -322,7 +343,7 @@ const emit = defineEmits<{
      * Emitted when select all checkbox is toggled
      * @event select-all
      */
-    (e: "select-all"): void;
+    (e: "select-all", selected: boolean): void;
 
     /**
      * Emitted when a row is selected/deselected
@@ -527,7 +548,7 @@ function onRowClick(item: T, index: number, event: MouseEvent | KeyboardEvent) {
 }
 
 function onSelectAll(selected: boolean) {
-    emit("select-all");
+    emit("select-all", selected);
 }
 
 /**
@@ -592,15 +613,17 @@ function getAlignmentClass(align?: FieldAlignment) {
 }
 
 /**
- * Get cell variant class for Bootstrap color variants (e.g., "success", "danger", "info")
- * Supports the _cellVariants convention from b-table for backward compatibility
+ * Get row class from item metadata
  */
-function getCellVariantClass(item: T, field: TableField) {
-    const cellVariants = item._cellVariants as Record<string, string> | undefined;
-    if (!cellVariants || !cellVariants[field.key]) {
-        return undefined;
-    }
-    return `table-${cellVariants[field.key]}`;
+function getRowClass(item: T) {
+    return (item as TableItemClassMeta).class;
+}
+
+/**
+ * Get cell class from item metadata
+ */
+function getItemCellClass(item: T, fieldKey: string) {
+    return (item as TableItemClassMeta).cellClass?.[fieldKey];
 }
 
 /**
@@ -608,6 +631,10 @@ function getCellVariantClass(item: T, field: TableField) {
  */
 function isRowSelected(index: number) {
     return props.selectedItems.includes(index);
+}
+
+function isRowIndeterminate(index: number) {
+    return props.indeterminateItems.includes(index);
 }
 
 /**
@@ -659,7 +686,11 @@ defineExpose({
 </script>
 
 <template>
-    <div :id="`g-table-container-${props.id}`" class="g-table-container" :class="containerClass">
+    <div
+        :id="`g-table-container-${props.id}`"
+        class="g-table-container"
+        :class="containerClass"
+        :aria-busy="props.loading ? 'true' : 'false'">
         <!-- Table wrapper -->
         <GOverlay :show="overlayLoading" class="position-relative w-100">
             <div
@@ -739,9 +770,9 @@ defineExpose({
                         <tr v-if="props.showEmpty && !props.items.length" class="g-table-empty-row">
                             <td :colspan="(selectable ? 1 : 0) + props.fields.length + (props.actions ? 1 : 0)">
                                 <slot name="empty">
-                                    <BAlert v-if="!loading" variant="info" show class="w-100 m-0">
+                                    <GAlert v-if="!loading" variant="info" show class="w-100 m-0">
                                         {{ props.emptyState?.message ?? "No data available" }}
-                                    </BAlert>
+                                    </GAlert>
                                 </slot>
                             </td>
                         </tr>
@@ -751,10 +782,15 @@ defineExpose({
                                 <tr
                                     :id="getRowId(props.id, getGlobalIndex(paginatedIndex))"
                                     :key="`tr` + getGlobalIndex(paginatedIndex)"
-                                    :class="{
-                                        'g-table-row-clickable': clickableRows || (selectable && !noSelectOnClick),
-                                        'g-table-row-selected': isRowSelected(getGlobalIndex(paginatedIndex)),
-                                    }"
+                                    :aria-rowindex="getGlobalIndex(paginatedIndex) + 1"
+                                    :data-pk="props.primaryKey ? item[props.primaryKey] : undefined"
+                                    :class="[
+                                        {
+                                            'g-table-row-clickable': clickableRows || (selectable && !noSelectOnClick),
+                                            'g-table-row-selected': isRowSelected(getGlobalIndex(paginatedIndex)),
+                                        },
+                                        getRowClass(item),
+                                    ]"
                                     @click="onRowClick(item, getGlobalIndex(paginatedIndex), $event)">
                                     <!-- Selection checkbox column -->
                                     <td v-if="selectable" class="g-table-select-column">
@@ -762,6 +798,7 @@ defineExpose({
                                             :id="`${getRowId(props.id, getGlobalIndex(paginatedIndex))}-select`"
                                             v-g-tooltip.hover
                                             :checked="isRowSelected(getGlobalIndex(paginatedIndex))"
+                                            :indeterminate="isRowIndeterminate(getGlobalIndex(paginatedIndex))"
                                             :title="props.selectCheckboxTitle"
                                             @click.stop
                                             @change="onRowSelect(item, getGlobalIndex(paginatedIndex))" />
@@ -777,7 +814,7 @@ defineExpose({
                                             field.cellClass,
                                             field.class,
                                             getAlignmentClass(field.align),
-                                            getCellVariantClass(item, field),
+                                            getItemCellClass(item, field.key),
                                             { 'hide-on-small': field.hideOnSmall },
                                         ]">
                                         <template
@@ -804,7 +841,7 @@ defineExpose({
                                     <!-- Actions column -->
                                     <td v-if="props.actions" class="g-table-actions-column">
                                         <slot name="actions" :item="item" :index="getGlobalIndex(paginatedIndex)">
-                                            <BDropdown
+                                            <GDropdown
                                                 v-g-tooltip.hover
                                                 no-caret
                                                 right
@@ -818,7 +855,7 @@ defineExpose({
                                                 </template>
 
                                                 <template v-for="ac in props.actions">
-                                                    <BDropdownItem
+                                                    <GDropdownItem
                                                         v-if="ac.visible ?? true"
                                                         :id="ac.id"
                                                         :key="ac.id"
@@ -835,9 +872,9 @@ defineExpose({
                                                         ">
                                                         <FontAwesomeIcon v-if="ac.icon" :icon="ac.icon" fixed-width />
                                                         {{ ac.label }}
-                                                    </BDropdownItem>
+                                                    </GDropdownItem>
                                                 </template>
-                                            </BDropdown>
+                                            </GDropdown>
                                         </slot>
                                     </td>
                                 </tr>
@@ -1037,6 +1074,15 @@ defineExpose({
 
             .custom-checkbox {
                 cursor: pointer;
+
+                // The visible checkbox is the (empty) label's ::before box, while
+                // the real input is visually hidden; both default to the arrow
+                // cursor, making the checkbox look unclickable. Force a pointer
+                // across the whole control.
+                :deep(.custom-control-input:not(:disabled)),
+                :deep(.custom-control-input:not(:disabled) ~ .custom-control-label) {
+                    cursor: pointer;
+                }
             }
         }
 

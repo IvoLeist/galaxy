@@ -121,7 +121,7 @@ module.exports = {
         es6: true,
     },
     rules: baseRules,
-    ignorePatterns: ["dist", "src/libs", "src/nls", "src/legacy", "packages"],
+    ignorePatterns: ["dist", "src/libs", "src/nls", "src/legacy", "packages/api-client"],
     plugins: basePlugins,
     overrides: [
         {
