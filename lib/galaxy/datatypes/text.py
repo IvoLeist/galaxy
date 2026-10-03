@@ -8,6 +8,7 @@ import re
 import shlex
 import subprocess
 import tempfile
+from html.parser import HTMLParser
 from typing import (
     IO,
     Optional,
@@ -81,6 +82,25 @@ class Html(Text):
             if hdr and hdr[0].lower().find("<html>") >= 0:
                 return True
         return False
+
+
+class Hocr(Html):
+    """HTML containing OCR page markup."""
+
+    file_ext = "hocr"
+
+    def sniff_prefix(self, file_prefix: FilePrefix) -> bool:
+        class HocrParser(HTMLParser):
+            has_page = False
+
+            def handle_starttag(self, tag, attrs):
+                for name, value in attrs:
+                    if name == "class" and value and "ocr_page" in value.split():
+                        self.has_page = True
+
+        parser = HocrParser()
+        parser.feed(file_prefix.contents_header)
+        return parser.has_page
 
 
 @build_sniff_from_prefix

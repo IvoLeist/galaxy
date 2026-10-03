@@ -4,6 +4,11 @@ XML format classes
 
 import logging
 import re
+from io import StringIO
+from xml.etree.ElementTree import (
+    iterparse,
+    ParseError,
+)
 
 from galaxy import util
 from galaxy.datatypes.dataproviders.dataset import DatasetDataProvider
@@ -86,6 +91,56 @@ class GenericXml(data.Text):
     def xml_dataprovider(self, dataset: DatasetProtocol, **settings) -> XMLDataProvider:
         dataset_source = DatasetDataProvider(dataset)
         return XMLDataProvider(dataset_source, **settings)
+
+
+def _ocr_xml_root(file_prefix: FilePrefix) -> str:
+    """Read only the root start tag, allowing a truncated document prefix."""
+    try:
+        return next(iterparse(StringIO(file_prefix.contents_header), events=("start",)))[1].tag
+    except (ParseError, StopIteration):
+        return ""
+
+
+class PageXml(GenericXml):
+    """PAGE XML layout and text."""
+
+    file_ext = "page.xml"
+
+    def sniff_prefix(self, file_prefix: FilePrefix) -> bool:
+        return bool(
+            re.fullmatch(
+                r"\{http://schema\.primaresearch\.org/PAGE/gts/pagecontent/\d{4}-\d{2}-\d{2}\}PcGts",
+                _ocr_xml_root(file_prefix),
+            )
+        )
+
+
+class Alto(GenericXml):
+    """Analyzed Layout and Text Object XML."""
+
+    file_ext = "alto"
+
+    def sniff_prefix(self, file_prefix: FilePrefix) -> bool:
+        return bool(
+            re.fullmatch(
+                r"\{(?:http://www\.loc\.gov/standards/alto/ns-v\d+#|http://schema\.ccs-gmbh\.com/ALTO)\}alto",
+                _ocr_xml_root(file_prefix),
+            )
+        )
+
+
+class AbbyyXml(GenericXml):
+    """ABBYY FineReader XML."""
+
+    file_ext = "abbyy.xml"
+
+    def sniff_prefix(self, file_prefix: FilePrefix) -> bool:
+        return bool(
+            re.fullmatch(
+                r"\{http://www\.abbyy\.com/FineReader_xml/FineReader\d+-schema-v\d+\.xml\}document",
+                _ocr_xml_root(file_prefix),
+            )
+        )
 
 
 @disable_parent_class_sniffing
