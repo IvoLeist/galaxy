@@ -152,7 +152,7 @@ log = logging.getLogger(__name__)
 # Override with config.default_job_shell.
 DEFAULT_JOB_SHELL = "/bin/bash"
 # Written by remote_tool_eval.py when it fails, before the tool runs.
-REMOTE_TOOL_EVAL_FAILURE_FILE = os.path.join("metadata", "outputs_populated", "traceback.txt")
+REMOTE_TOOL_EVAL_FAILURE_FILE = os.path.join("metadata", "outputs_populated", "remote_tool_eval_traceback.txt")
 DEFAULT_LOCAL_WORKERS = 4
 
 DEFAULT_CLEANUP_JOB = "always"
